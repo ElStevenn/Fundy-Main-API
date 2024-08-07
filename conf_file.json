@@ -1,0 +1,13 @@
+{
+    "default_time_zone": "Europe/Amsterdam",
+    "error_notification": {
+        "active": false,
+        "developer_email": "paumat17@gmail.com",
+        "message_prompt": "An error ocurred with shedule %s. Please look at the schdule node, there is an error",
+    },
+    "sucess_notification": {
+        "active": false,
+        "developer_email": "paumat17@gmail.com",
+        "message_prompt": "GREAT! The acction has been triggered successfully!" 
+    }
+}

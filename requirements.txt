@@ -1,0 +1,10 @@
+fastapi
+aiohttp
+uvicorn
+pydantic
+requests
+schedule
+bs4
+lxml
+pytz
+python-dotenv
