@@ -15,7 +15,7 @@ if [ "$response" == "y" ]; then
     docker build -t scheduler .
 
     # Run container in needed port 
-    docker run -d -p 8000:8000 --name scheduler_v1 scheduler
+    docker run -d -p 80:80 --name scheduler_v1 scheduler
 
     # Get relevant data
     ip=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' scheduler_v1)

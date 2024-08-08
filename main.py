@@ -1,14 +1,28 @@
-from fastapi import FastAPI, requests
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from app import schemas, orm, tasksheduker, asset_alerts
 import uuid
 
 app = FastAPI(title="Schedule Task Node", description="")
 task_scheduler = tasksheduker.TaskScheduler()
 
+app.mount("/mini_frontend", StaticFiles(directory="mini_frontend"), name="static")
+
+@app.get("/", include_in_schema=False)
+async def root():
+    content = open("mini_frontend/index.html")
+    return HTMLResponse(content.read())
+
+
+
 # PART 1 | TIME SCHEDULE TASKS
 @app.post("/schedule_one_time", description="Schedule a task that will be executed only one single time", tags=["Schedule By Time"])
-async def shedule_new_task(reqest_boddy: schemas.OneTimeTask):
+async def shedule_new_task(request: Request, reqest_boddy: schemas.OneTimeTask):
     try:
+        client_ip = request.client.host
+        client_timezone = await tasksheduker.get_timezone(client_ip)
+
         task_id = str(uuid.uuid4())
         task_scheduler.schedule_one_time_task(
             task_id=task_id, 
@@ -16,11 +30,12 @@ async def shedule_new_task(reqest_boddy: schemas.OneTimeTask):
             method=reqest_boddy.method, 
             data=reqest_boddy.data, 
             headers=reqest_boddy.headers,
-            execute_at=reqest_boddy.execute_at
+            execute_at=reqest_boddy.execute_at,
+            timezone=client_timezone
             )
-        return {"status": "success", "task_id": task_id, "message": "The task for one time, has been sucess executed"}
+        return {"status": "success", "task_id": task_id, "message": "The task for one time, has been sucess scheduled", "timezone": client_timezone}
     except Exception as e:
-        return {"status": "error", "message": f"There was an unexcepted error with schedule a single task {e}"}
+        return {"status": "error", "error": f"There was an unexcepted error with schedule a single task {e}"}
 
 @app.post("/schedule_interval", description="Schedule task specific number of times or always", tags=["Schedule By Time"])
 async def schedule_interval(request_boddy: schemas.LimitedIntervalTask):
@@ -29,7 +44,10 @@ async def schedule_interval(request_boddy: schemas.LimitedIntervalTask):
         task_scheduler.schedule_interval_task(
             task_id=task_id,
             url=request_boddy.url, 
-            method=request_boddy.method
+            method=request_boddy.method,
+            data=request_boddy.data,
+            headers=request_boddy.headers,
+            interval_seconds=request_boddy.interval_seconds
         )
         return {"status": "success", "task_id": task_id, "message": "The interval task has been scheduled!"}
     except Exception as e:
@@ -97,5 +115,5 @@ async def add_new_alert_if_crypto_reaches_price(request_boddy: schemas.CryptoAle
 if __name__ == "__main__":
     import uvicorn
     task_scheduler.start()
-    uvicorn.run(app, host='0.0.0.0', port=80, access_log=False)
+    uvicorn.run(app, host='0.0.0.0', port=8000)
     

@@ -1,13 +1,13 @@
 import time
 import threading
+import httpx
+import asyncio
 import requests
 from typing import Dict, Any, Optional, Union, Literal
-import json
-import os
-from datetime import datetime
+import json, os
+from datetime import datetime, timedelta
 import pytz
-
-TIMEZONE = 'Europe/Amsterdam'
+import schedule
 
 class TaskScheduler:
     def __init__(self, file_path: str = "tasks.json") -> None:
@@ -29,9 +29,9 @@ class TaskScheduler:
         if response.status_code == 500 and self.conf['error_notification']['active']:
             self.send_error_email("Error when sending", f"There was an error while sending the request: {response.text}")
 
-    def schedule_one_time_task(self, task_id: int, url: str, method: Literal["get", "post", "put", "delete", "patch"], data: Dict[str, Any], headers: Optional[Dict[str, Any]], execute_at: str) -> None:
-        amsterdam_tz = pytz.timezone(TIMEZONE)
-        execute_at_aware = amsterdam_tz.localize(datetime.strptime(execute_at, '%H:%M'))
+    def schedule_one_time_task(self, task_id: int, url: str, method: Literal["get", "post", "put", "delete", "patch"], data: Dict[str, Any], headers: Optional[Dict[str, Any]], execute_at: str, timezone: str) -> None:
+        tz = pytz.timezone(timezone)
+        execute_at_aware = tz.localize(datetime.strptime(execute_at, '%H:%M'))
 
         self.tasks[task_id] = {
             "type": "one_time",
@@ -39,9 +39,18 @@ class TaskScheduler:
             "method": method,
             "data": data,
             "headers": headers,
-            "execute_at": execute_at_aware.strftime('%H:%M')
+            "execute_at": execute_at_aware.strftime('%H:%M'),
+            "timezone": timezone  # Save the timezone with the task
         }
         self.save_tasks()
+
+        # Calculate the delay in seconds until the task should be executed
+        now_aware = datetime.now(tz)
+        delay_seconds = (execute_at_aware - now_aware).total_seconds()
+        if delay_seconds < 0:
+            delay_seconds += 86400  # Add a day's worth of seconds if time has already passed today
+
+        threading.Timer(delay_seconds, self.run_scheduled_task, args=[task_id]).start()
 
     def schedule_interval_task(self, task_id: int, url: str, method: Literal["get", "post", "put", "delete", "patch"], data: Dict[str, Any], headers: Optional[Dict[str, Any]], interval_seconds: int) -> None:
         self.tasks[task_id] = {
@@ -54,6 +63,7 @@ class TaskScheduler:
             "next_run": time.time() + interval_seconds
         }
         self.save_tasks()
+        schedule.every(interval_seconds).seconds.do(self.run_scheduled_task, task_id=task_id)
 
     def schedule_limited_interval_task(self, task_id: int, url: str, method: Literal["get", "post", "put", "delete", "patch"], data: Dict[str, Any], headers: Optional[Dict[str, Any]], interval_seconds: int, executions: Union[int, str]) -> None:
         self.tasks[task_id] = {
@@ -67,17 +77,25 @@ class TaskScheduler:
             "next_run": time.time() + interval_seconds
         }
         self.save_tasks()
+        for _ in range(int(executions) if executions != "*" else 1):
+            schedule.every(interval_seconds).seconds.do(self.run_scheduled_task, task_id=task_id)
+
+    def run_scheduled_task(self, task_id: int) -> None:
+        task = self.tasks.get(task_id)
+        if task:
+            self.send_request(task["url"], task["method"], task["data"], task["headers"])
+            if task["type"] == "one_time":
+                del self.tasks[task_id]
+            elif task["type"] == "limited_interval" and task["executions"] != "*":
+                task["executions"] -= 1
+                if task["executions"] == 0:
+                    del self.tasks[task_id]
+            self.save_tasks()
 
     def save_tasks(self) -> None:
         serializable_tasks = {task_id: task for task_id, task in self.tasks.items()}
         with open(self.file_path, "w") as file:
             json.dump(serializable_tasks, file)
-
-    def get_tasks(self):
-        if os.path.exists(self.file_path):
-            with open(self.file_path, "r") as file:
-                tasks = json.load(file)
-        return tasks
 
     def load_tasks(self) -> None:
         if os.path.exists(self.file_path):
@@ -89,25 +107,8 @@ class TaskScheduler:
                 self.tasks = tasks
 
     def run_scheduler(self) -> None:
-        amsterdam_tz = pytz.timezone(TIMEZONE)
         while True:
-            now = datetime.now(amsterdam_tz).strftime('%H:%M')
-            for task_id, task in list(self.tasks.items()):
-                if task["type"] == "one_time" and task["execute_at"] == now:
-                    self.send_request(task["url"], task["method"], task["data"], task["headers"])
-                    del self.tasks[task_id]
-                elif task["type"] == "interval" and time.time() >= task["next_run"]:
-                    self.send_request(task["url"], task["method"], task["data"], task["headers"])
-                    task["next_run"] = time.time() + task["interval_seconds"]
-                elif task["type"] == "limited_interval" and time.time() >= task["next_run"]:
-                    if task["executions"] == "*" or task["executions"] > 0:
-                        self.send_request(task["url"], task["method"], task["data"], task["headers"])
-                        task["next_run"] = time.time() + task["interval_seconds"]
-                        if task["executions"] != "*":
-                            task["executions"] -= 1
-                    if task["executions"] == 0:
-                        del self.tasks[task_id]
-            self.save_tasks()
+            schedule.run_pending()
             time.sleep(1)
 
     def start(self) -> None:
@@ -149,9 +150,16 @@ class TaskScheduler:
         }
         requests.post(url=url, data=data)
 
+async def get_timezone(client_ip) -> str:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"https://ipinfo.io/{client_ip}/json")
+        response_data = response.json()
+        timezone = response_data.get('timezone', 'Europe/Amsterdam')
+        return timezone
 
+async def proofs():
+    timezone = await get_timezone("92.189.163.252")
+    print("timezone -> ", timezone)
 
 if __name__ == "__main__":
-    task_scheduler = TaskScheduler()
-    task_scheduler.start()
-    # test_schedule_one_time_task()
+    asyncio.run(proofs())

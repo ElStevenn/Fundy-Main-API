@@ -5,7 +5,7 @@ FROM python:3.12-slim
 WORKDIR /
 
 # Install pip packages directly
-RUN pip install --no-cache-dir fastapi aiohttp uvicorn pydantic requests schedule bs4 lxml pytz
+RUN pip install --no-cache-dir fastapi aiohttp uvicorn pydantic requests schedule bs4 lxml pytz jinja2
 
 # Copy the rest of the application code into the container
 COPY . .
@@ -14,4 +14,4 @@ COPY . .
 EXPOSE 8080 80
 
 # Set the command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]

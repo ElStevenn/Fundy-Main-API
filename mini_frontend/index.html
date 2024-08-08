@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/mini_frontend/script.js"></script>
+    <title>Schedule Node</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #555;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            background: #e7e7eb;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .task-info, .config-info {
+            flex-grow: 1;
+        }
+        .task-info .title {
+            font-weight: bold;
+            display: block;
+        }
+        .task-info .url {
+            color: #007bff;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        .delete-btn {
+            background: #ff6b6b;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .delete-btn:hover {
+            background: #ff4949;
+        }
+        .config-group {
+            margin-bottom: 15px;
+        }
+        .config-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .config-group input[type="text"], .config-group input[type="email"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 20px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #66bb6a;
+        }
+        input:checked + .slider:before {
+            transform: translateX(14px);
+        }
+    </style>
+</head>
+<body>
+    <h1>SCHEDULE NODE</h1>
+    <div class="container">
+        <h2>Scheduled Tasks</h2>
+        <ul id="task-list">
+            <!-- Task items will be dynamically added here -->
+        </ul>
+    </div>
+
+    <div class="container">
+        <h2>Config</h2>
+        <div class="config-group">
+            <label for="default_time_zone">Default Time Zone:</label>
+            <input type="text" id="default_time_zone" value="Europe/Amsterdam">
+        </div>
+        <div class="config-group">
+            <label for="error_notification_active">Error Notification Active:</label>
+            <label class="switch">
+                <input type="checkbox" id="error_notification_active">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="config-group">
+            <label for="error_notification_email">Developer Email:</label>
+            <input type="email" id="error_notification_email" value="paumat17@gmail.com">
+        </div>
+        <div class="config-group">
+            <label for="error_notification_message">Error Message Prompt:</label>
+            <input type="text" id="error_notification_message" value="An error occurred with schedule %s. Please look at the schedule node, there is an error">
+        </div>
+        <div class="config-group">
+            <label for="success_notification_active">Success Notification Active:</label>
+            <label class="switch">
+                <input type="checkbox" id="success_notification_active">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="config-group">
+            <label for="success_notification_email">Developer Email:</label>
+            <input type="email" id="success_notification_email" value="paumat17@gmail.com">
+        </div>
+        <div class="config-group">
+            <label for="success_notification_message">Success Message Prompt:</label>
+            <input type="text" id="success_notification_message" value="GREAT! The action has been triggered successfully!">
+        </div>
+    </div>
+
+    <script>
+        function deleteTask(button) {
+            const li = button.parentElement;
+            li.remove();
+        }
+    </script>
+</body>
+</html>
