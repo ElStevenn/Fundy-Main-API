@@ -23,6 +23,10 @@ class LimitedIntervalTask(BaseTask):
             raise ValueError('executions must be an integer or "*"')
         return v
 
+class IntervalMinutesTask(BaseTask):
+    execute_every: int
+    
+
 class EveryDayTask(BaseTask):
     execute_at: List[str]  # List of times in 'HH:MM' format
 

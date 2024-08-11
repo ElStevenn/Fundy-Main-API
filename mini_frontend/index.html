@@ -7,31 +7,37 @@
     <title>Schedule Node</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
+            font-family: 'Roboto', sans-serif;
+            background-color: #1e1e1e;
+            color: #c7c7c7;
             margin: 0;
             padding: 20px;
         }
         .container {
             max-width: 600px;
             margin: auto;
-            background: #fff;
+            background: #2c2c2c;
             padding: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
             border-radius: 8px;
             margin-bottom: 20px;
         }
         h1, h2 {
             text-align: center;
-            color: #555;
+            color: #f1f1f1;
+        }
+        h3 {
+            color: #f1f1f1;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
         }
         ul {
             list-style-type: none;
             padding: 0;
         }
         li {
-            background: #e7e7eb;
+            background: #3a3a3a;
             margin: 10px 0;
             padding: 15px;
             border-radius: 5px;
@@ -45,14 +51,18 @@
         .task-info .title {
             font-weight: bold;
             display: block;
+            color: #ffffff;
         }
         .task-info .url {
-            color: #007bff;
+            color: #3399ff;
             text-decoration: none;
             transition: color 0.3s;
         }
+        .task-info .url:hover {
+            color: #66b3ff;
+        }
         .delete-btn {
-            background: #ff6b6b;
+            background: #e74c3c;
             color: #fff;
             border: none;
             padding: 5px 10px;
@@ -61,7 +71,7 @@
             transition: background 0.3s;
         }
         .delete-btn:hover {
-            background: #ff4949;
+            background: #c0392b;
         }
         .config-group {
             margin-bottom: 15px;
@@ -70,12 +80,15 @@
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
+            color: #c7c7c7;
         }
         .config-group input[type="text"], .config-group input[type="email"] {
             width: calc(100% - 22px);
             padding: 10px;
-            border: 1px solid #ccc;
+            border: 1px solid #555;
             border-radius: 5px;
+            background-color: #3a3a3a;
+            color: #c7c7c7;
         }
         .switch {
             position: relative;
@@ -95,7 +108,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #ccc;
+            background-color: #555;
             transition: .4s;
             border-radius: 34px;
         }
@@ -116,6 +129,41 @@
         input:checked + .slider:before {
             transform: translateX(14px);
         }
+        .buttons-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .buttons-container button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .buttons-container button:last-child {
+            margin-right: 0;
+        }
+        .buttons-container .docs-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .buttons-container .save-btn {
+            background-color: #007bff;
+            color: white;
+        }
+        .buttons-container .github-btn {
+            background-color: #333;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .buttons-container .github-btn img {
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -127,44 +175,27 @@
         </ul>
     </div>
 
+   
     <div class="container">
         <h2>Config</h2>
-        <div class="config-group">
-            <label for="default_time_zone">Default Time Zone:</label>
-            <input type="text" id="default_time_zone" value="Europe/Amsterdam">
-        </div>
-        <div class="config-group">
-            <label for="error_notification_active">Error Notification Active:</label>
-            <label class="switch">
-                <input type="checkbox" id="error_notification_active">
-                <span class="slider"></span>
-            </label>
-        </div>
-        <div class="config-group">
-            <label for="error_notification_email">Developer Email:</label>
-            <input type="email" id="error_notification_email" value="paumat17@gmail.com">
-        </div>
-        <div class="config-group">
-            <label for="error_notification_message">Error Message Prompt:</label>
-            <input type="text" id="error_notification_message" value="An error occurred with schedule %s. Please look at the schedule node, there is an error">
-        </div>
-        <div class="config-group">
-            <label for="success_notification_active">Success Notification Active:</label>
-            <label class="switch">
-                <input type="checkbox" id="success_notification_active">
-                <span class="slider"></span>
-            </label>
-        </div>
-        <div class="config-group">
-            <label for="success_notification_email">Developer Email:</label>
-            <input type="email" id="success_notification_email" value="paumat17@gmail.com">
-        </div>
-        <div class="config-group">
-            <label for="success_notification_message">Success Message Prompt:</label>
-            <input type="text" id="success_notification_message" value="GREAT! The action has been triggered successfully!">
+        <div id="config-form">
+            <!-- Config form fields will be dynamically added here -->
         </div>
     </div>
-    <button style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; display: block; margin: 20px auto;" onclick="window.location.href='/docs'" cursor='pointer'>See Docs</button>
+    
+
+    <!-- Buttons Section -->
+    <div class="buttons-container">
+        <button class="docs-btn" onclick="window.location.href='/redoc'">See Docs</button>
+        
+        <button class="save-btn" onclick="saveConfig()">Save Config</button>
+        
+        <button class="github-btn" onclick="window.location.href='https://github.com/ElStevenn/schedule_node'">
+            <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub">
+            GitHub
+        </button>
+    </div>
+    
     <script>
         function deleteTask(button) {
             const li = button.parentElement;

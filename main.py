@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi import FastAPI, Request, BackgroundTasks, HTTPException
 from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -231,24 +231,20 @@ async def remove_task(task_id: str):
         return {"status": "error", "message": f"There was an unexpected error: {e}"}
 
 # PART CONFIGURATION |
-@app.get("/conf", description="Get configuration of this node in JSON format", tags=["Schedule node configuration"])
+@app.get("/conf", include_in_schema=False)
 async def get_schedule_node_configuration():
-    return task_scheduler.conf
+    return task_scheduler.conf()
 
-@app.post("/conf", description="Set whole configuration", tags=["Schedule node configuration"])
-async def set_new_configuration(request_body: schemas.WholeConfiguration):
-    task_scheduler.save_whole_conf(request_body.dict())
-    return task_scheduler.conf
+@app.post("/save-config", include_in_schema=True)
+async def set_new_configuration(request: Request):
 
-@app.put("/conf/{key}/{value}", description="Set key configuration", tags=["Schedule node configuration"])
-async def set_value_conf(key: str, value: str):
-    task_scheduler.set_conf(key, value)
-    return task_scheduler.conf
+    # Get config and then save it 
+    config = await request.json()
+    print(config)
+    task_scheduler.save_conf(config)
+    return {"message": "Configuration saved successfully"}
 
-@app.delete("/conf/{key}", description="Delete key configuration", tags=["Schedule node configuration"])
-async def delete_part_of_conf(key: str):
-    task_scheduler.del_conf(key)
-    return task_scheduler.conf
+
 
 # PART 2 | CRYPTO / INDEX reach a certain price
 @app.put("/add_new_alert", tags=["Schedule By Crypto"])

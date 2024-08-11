@@ -1,1 +1,15 @@
-{}
+{
+    "80d65a4c-2a37-4582-a2ec-77a07717dd45": {
+        "type": "one_time",
+        "url": "https://api.trello.com/1/boards/",
+        "method": "post",
+        "data": {
+            "name": "Board From Schedule",
+            "key": "9cd24bada8c19807fd0703a6782b144c",
+            "token": "ATTAfd6adec1400f07dc5e7dae94f272f1ad03ec95ecb001929609c0ec460a665a75BB5550D4"
+        },
+        "headers": {},
+        "execute_at": "1900-01-01T12:50:00-00:15",
+        "timezone": "Europe/Madrid"
+    }
+}

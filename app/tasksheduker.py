@@ -238,8 +238,17 @@ class TaskScheduler:
     def conf(self) -> dict:
         if os.path.exists('conf_file.json'):
             with open('conf_file.json', 'r') as f:
-                return json.load(f)
+                file_content = f.read()  
+                return json.loads(file_content)  
         return {}
+
+    def save_conf(self, configuration: dict):
+        if os.path.exists('conf_file.json'):
+            with open('conf_file.json', 'w') as f:
+                json.dump(configuration, f)
+        else:
+            raise FileNotFoundError("conf_file.json doesn't exist")
+
 
     def send_error_email(self, error_name, error_description):
         url = "http://18.116.69.127:8000/notificate_node_issue"
