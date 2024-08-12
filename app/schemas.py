@@ -24,8 +24,9 @@ class LimitedIntervalTask(BaseTask):
         return v
 
 class IntervalMinutesTask(BaseTask):
-    execute_every: int
+    interval_minutes: int
     
+
 
 class EveryDayTask(BaseTask):
     execute_at: List[str]  # List of times in 'HH:MM' format

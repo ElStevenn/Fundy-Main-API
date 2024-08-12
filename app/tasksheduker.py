@@ -73,7 +73,7 @@ class TaskScheduler:
                 "method": method,
                 "data": data,
                 "headers": headers,
-                "execute_at": execute_at,
+                "execute_at": execute_at_aware.isoformat(),
                 "executions": executions,
                 "timezone": timezone
             }
@@ -94,7 +94,7 @@ class TaskScheduler:
                 "method": method,
                 "data": data,
                 "headers": headers,
-                "execute_at": execute_at,
+                "execute_at": execute_at_aware.isoformat(),
                 "executions": executions,
                 "timezone": timezone
             }
@@ -104,23 +104,19 @@ class TaskScheduler:
 
 
         
-    def schedule_limited_interval_task(self, task_id: int, url: str, method: Literal["get", "post", "put", "delete", "patch"], data: Dict[str, Any], headers: Optional[Dict[str, Any]], interval_seconds: int, executions: Union[int, str]) -> None:
-        print(f"Scheduling limited interval task {task_id}")
-        next_run = datetime.utcnow() + timedelta(seconds=interval_seconds)
+    def schedule_limited_interval_task(self, task_id: int, url: str, method: Literal["get", "post", "put", "delete", "patch"], data: Dict[str, Any], headers: Optional[Dict[str, Any]], interval_minutes: int) -> None:
         self.tasks[task_id] = {
-            "type": "limited_interval",
+            "type": "interval_minutes_task",
             "url": url,
             "method": method,
             "data": data,
             "headers": headers,
-            "interval_seconds": interval_seconds,
-            "executions": executions,
-            "next_run": next_run.isoformat()
+            "interval_seconds": interval_minutes,
         }
         self.save_tasks()
 
-        for _ in range(int(executions) if executions != "*" else 1):
-            schedule.every(interval_seconds).seconds.do(self.run_scheduled_task, task_id)
+        print(f"Executing a task every {interval_minutes} minutes as an id {task_id}")
+        schedule.every(interval_minutes).minutes.do(self.run_scheduled_task, task_id).tag(task_id)
 
     def run_scheduled_task(self, task_id: str) -> None:
         print(f"Attempting to run task {task_id}")
@@ -233,7 +229,11 @@ class TaskScheduler:
         else:
             print(f"Task {task_id} does not exist.")
 
-
+    def delete_all_tasks(self) -> None:
+        """Delete all the tasks"""
+        self.tasks = {}
+        self.save_tasks()
+        schedule.clear()
 
     def conf(self) -> dict:
         if os.path.exists('conf_file.json'):

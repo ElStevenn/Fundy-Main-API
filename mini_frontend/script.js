@@ -2,23 +2,21 @@ console.log("HEY!");
 
 const url_base = '/';  // Using a relative URL base
 
-function get_all_tasks() {
-    const url = url_base + "tasks";  // This will use the same host as the current page
+function createTaskElement(taskId, task) {
+    const taskElement = document.createElement('li');
+    taskElement.innerHTML = `
+        <div class="task-info">
+            <span class="title">${task.type}</span>
+            <a href="${task.url}" class="url">TASK LOL -> ${task.url}</a>
+        </div>
+        <button class="delete-btn">Delete</button>
+    `;
     
-    return fetch(url)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            return data;
-        })
-        .catch(error => {
-            console.error('There was a problem with the fetch operation:', error);
-            return null; // Return null to handle errors gracefully
-        });
+    // Adding the event listener programmatically
+    const deleteButton = taskElement.querySelector('.delete-btn');
+    deleteButton.addEventListener('click', () => deleteTask(deleteButton, taskId));
+    
+    return taskElement;
 }
 
 // Function to convert snake_case to Title Case
@@ -182,12 +180,19 @@ function createTaskElement(taskId, task) {
     taskElement.innerHTML = `
         <div class="task-info">
             <span class="title">${task.type}</span>
-            <a href="${task.url}" class="url">${task.url}</a>
+            <a href="${task.url}" class="url">TASK LOL -> ${task.url}</a>
         </div>
-        <button class="delete-btn" onclick="deleteTask(this)">Delete</button>
+        <button class="delete-btn">Delete</button>
     `;
+    
+    // Adding the event listener programmatically
+    const deleteButton = taskElement.querySelector('.delete-btn');
+    deleteButton.addEventListener('click', () => deleteTask(deleteButton, taskId));
+    
     return taskElement;
 }
+
+
 
 // Populate the task list with fetched tasks
 get_all_tasks().then(tasks => {
@@ -198,7 +203,9 @@ get_all_tasks().then(tasks => {
         noTasksElement.textContent = "No tasks available";
         taskList.appendChild(noTasksElement);
     } else {
+        console.log("Tasks fetched:", tasks); // Log the tasks fetched
         for (const [taskId, task] of Object.entries(tasks)) {
+            console.log(`Processing task with ID: ${taskId}`); // Log each task
             const taskElement = createTaskElement(taskId, task);
             taskList.appendChild(taskElement);
         }
@@ -208,7 +215,34 @@ get_all_tasks().then(tasks => {
 });
 
 // Function to delete a task
-function deleteTask(button) {
-    const li = button.parentElement;
-    li.remove();
+function deleteTask(button, taskId) {
+    console.log(`Attempting to delete task with ID: ${taskId}`);  // Debugging
+
+    const url = url_base + "delete_task/" + taskId;
+
+    fetch(url, {
+        method: 'DELETE'
+    })
+    .then(response => {
+        if (!response.ok) {
+            console.error(`Failed to delete task with ID: ${taskId}, Status: ${response.status}`);
+            throw new Error('Failed to delete the task');
+        }
+        // Only call .text() if your server returns no content
+        return response.text(); 
+    })
+    .then(() => {
+        console.log('Task deleted successfully'); 
+        // Remove the task from the DOM
+        const li = button.closest('li');  
+        if (li) {
+            li.remove();
+        } else {
+            console.error('Could not find the parent <li> element to remove.');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting task:', error);
+    });
 }
+
