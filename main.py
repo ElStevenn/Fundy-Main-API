@@ -39,7 +39,7 @@ app = FastAPI(
     ),
     lifespan=lifespan,
     version="1.0",
-    servers=[{"url":"http://3.143.209.3/", "description":"USA"},{"url":"http://0.0.0.0/", "description":"EU"}]
+    servers=[{"url":"http://3.143.209.3/", "description":"USA"},{"url":"http://localhost/", "description":"EU"}]
 )
 
 task_scheduler = tasksheduker.TaskScheduler()
@@ -278,7 +278,7 @@ async def schedule_limited_minutes(request_body: schemas.IntervalMinutesTask, ba
     try:
 
         task_id = str(uuid.uuid4())
-        await task_scheduler.schedule_limited_interval_task(
+        task_scheduler.schedule_limited_interval_task(
             task_id=task_id,
             url=request_body.url,
             method=request_body.method,

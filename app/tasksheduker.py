@@ -124,7 +124,7 @@ class TaskScheduler:
         
         if task:
             self.send_request(task["url"], task["method"], task["data"], task["headers"])
-            if task["type"] == "one_time" or (task["type"] == "limited_interval" and task["executions"] <= 1):
+            if task["type"] == "one_time" or (task["type"] == "interval_with_number_of_times" and task["executions"] <= 1):
                 del self.tasks[task_id]
             elif "executions" in task:
                 task["executions"] -= 1
@@ -133,7 +133,6 @@ class TaskScheduler:
             self.save_tasks()
         else:
             print(f"Task {task_id} does not exist and will not be executed.")
-
             
     def save_tasks(self) -> None:
         print("Saving tasks to file")
@@ -197,25 +196,20 @@ class TaskScheduler:
                                     task["execute_at"],
                                     executions="*"
                                 )
-                        elif task["type"] == "limited_interval":
-                            next_run = datetime.fromisoformat(task["next_run"])
-                            timezone = pytz.timezone(task["timezone"])
-                            now_aware = timezone.localize(datetime.utcnow())
-                            if now_aware < next_run:
-                                self.tasks[task_id] = task
-                                interval = task["interval_seconds"]
-                                executions = task.get("executions", "*")
-                                self.schedule_limited_interval_task(
-                                    task_id,
-                                    task["url"],
-                                    task["method"],
-                                    task["data"],
-                                    task["headers"],
-                                    interval,
-                                    executions
-                                )
+                        elif task["type"] == "interval_minutes_task":
+                            interval = task["interval_seconds"]
+                            self.tasks[task_id] = task
+                            self.schedule_limited_interval_task(
+                                task_id,
+                                task["url"],
+                                task["method"],
+                                task["data"],
+                                task["headers"],
+                                interval
+                            )
                 except json.JSONDecodeError:
                     self.tasks = {}
+
 
     def delete_task(self, task_id: str) -> None:
         """Deletes a task by task_id and removes it from the schedule."""

@@ -177,13 +177,32 @@ function saveConfig() {
 
 function createTaskElement(taskId, task) {
     const taskElement = document.createElement('li');
-    taskElement.innerHTML = `
+    if (task.type === "interval_minutes_task"){
+        taskElement.innerHTML = `
         <div class="task-info">
             <span class="title">${task.type}</span>
-            <a href="${task.url}" class="url">TASK LOL -> ${task.url}</a>
+            <a href="${task.url}" class="url">${task.url}</a>
         </div>
         <button class="delete-btn">Delete</button>
     `;
+    }else if(task.type === "interval_tasks_unlimited"){
+        taskElement.innerHTML = `
+        <div class="task-info">
+            <span class="title">${task.type}</span>
+            <a href="${task.url}" class="url">${task.url}</a>
+        </div>
+        <button class="delete-btn">Delete</button>
+    `;
+    }else if(task.type === "interval_minutes_task"){
+        taskElement.innerHTML = `
+        <div class="task-info">
+            <span class="title">${task.type}</span>
+            <a href="${task.url}" class="url">${task.url}</a>
+        </div>
+        <button class="delete-btn">Delete</button>
+        `;
+    }
+
     
     // Adding the event listener programmatically
     const deleteButton = taskElement.querySelector('.delete-btn');
@@ -192,6 +211,24 @@ function createTaskElement(taskId, task) {
     return taskElement;
 }
 
+function get_all_tasks() {
+    const url = url_base + 'tasks';  // Update the URL to the correct endpoint
+
+    return fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            return data;
+        })
+        .catch(error => {
+            console.error('There was a problem with the fetch operation:', error);
+            return {};  // Return an empty object to handle errors gracefully
+        });
+}
 
 
 // Populate the task list with fetched tasks
