@@ -1,85 +1,72 @@
-
-import docker
+import time
 import redis
+import schedule
+import httpx
 import json
+import os
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional, Union, Literal
+import pytz
 
 class RedisService:
     def __init__(self):
         self._r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+        self.ensure_correct_key_type()
 
-    def save_task(self, task_id, task_data):
-        """
-        Save a task to Redis.
-        
-        :param task_id: The ID of the task.
-        :param task_data: A dictionary containing the task details.
-        """
-        try:
-            self._r.hset("tasks", task_id, json.dumps(task_data))
-            print(f"Task '{task_id}' saved successfully.")
-        except redis.RedisError as e:
-            print(f"Failed to save task '{task_id}': {e}")
+    def ensure_correct_key_type(self):
+        """Ensure the 'tasks' key is a hash or delete it if not."""
+        if self._r.exists("tasks") and self._r.type("tasks") != "hash":
+            print(f"Deleting the incorrect 'tasks' key of type {self._r.type('tasks')}.")
+            self._r.delete("tasks")
 
-    def get_task(self, task_id):
-        """
-        Retrieve a task from Redis by its ID.
-        
-        :param task_id: The ID of the task.
-        :return: A dictionary containing the task details, or None if not found.
-        """
-        try:
-            task_data = self._r.hget("tasks", task_id)
-            if task_data:
-                return json.loads(task_data)
-            else:
-                print(f"Task '{task_id}' not found.")
-                return None
-        except redis.RedisError as e:
-            print(f"Failed to retrieve task '{task_id}': {e}")
+    def save_task(self, task_id: str, task_data: Dict[str, Any]) -> None:
+        """Save a task to Redis as a hash entry."""
+        self.ensure_correct_key_type()
+        self._r.hset("tasks", task_id, json.dumps(task_data))
+        print(f"Task '{task_id}' saved successfully.")
+
+    def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve a task from Redis by its ID."""
+        task_data = self._r.hget("tasks", task_id)
+        if task_data:
+            return json.loads(task_data)
+        else:
+            print(f"Task '{task_id}' not found.")
             return None
 
-    def delete_task(self, task_id):
-        """
-        Delete a task from Redis.
-        
-        :param task_id: The ID of the task to delete.
-        """
-        try:
-            result = self._r.hdel("tasks", task_id)
-            if result:
-                print(f"Task '{task_id}' deleted successfully.")
-            else:
-                print(f"Task '{task_id}' not found or could not be deleted.")
-        except redis.RedisError as e:
-            print(f"Failed to delete task '{task_id}': {e}")
+    def delete_task(self, task_id: str) -> None:
+        """Delete a task from Redis."""
+        result = self._r.hdel("tasks", task_id)
+        if result:
+            print(f"Task '{task_id}' deleted successfully.")
+        else:
+            print(f"Task '{task_id}' not found or could not be deleted.")
 
-    def get_all_tasks(self):
-        """
-        Retrieve all tasks from Redis.
-        
-        :return: A dictionary of all tasks, with task IDs as keys.
-        """
-        try:
-            tasks = self._r.hgetall("tasks")
-            return {task_id: json.loads(task_data) for task_id, task_data in tasks.items()}
-        except redis.RedisError as e:
-            print(f"Failed to retrieve tasks: {e}")
-            return {}
+    def get_all_tasks(self) -> Dict[str, Any]:
+        """Retrieve all tasks from Redis."""
+        self.ensure_correct_key_type()
+        tasks = self._r.hgetall("tasks")
+        return {task_id: json.loads(task_data) for task_id, task_data in tasks.items()}
 
-    def delete_all(self):
-        """
-        Delete all data in the Redis database.
-        """
-        try:
-            self._r.flushdb()
-            print("All data in Redis has been deleted.")
-        except redis.RedisError as e:
-            print(f"Failed to delete all data in Redis: {e}")
-
+    def delete_all(self) -> None:
+        """Delete all tasks in Redis."""
+        self._r.delete("tasks")
+        print("All tasks have been deleted from Redis.")
 
 if __name__ == "__main__":
     redis_service = RedisService()
-    
-    # print current tasks
-    # redis_service.save_task("09829283y", {"name":"pepon", "surname": "mamon"})
-    redis_service.delete_all()
+
+    # Define a task with a unique ID
+    task_id = "task_1"
+    task_data = {
+        "url": "http://example.com/api/notify",
+        "method": "post",
+        "data": {"message": "Hello World"},
+        "headers": {"Content-Type": "application/json"},
+        "execute_at": "12:00",
+        "timezone": "Europe/Amsterdam"
+    }
+
+    # Save the task to Redis
+    # redis_service.save_task(task_id, task_data)
+    print(redis_service.get_all_tasks())

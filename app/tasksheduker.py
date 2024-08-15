@@ -14,7 +14,7 @@ class TaskScheduler(RedisService):
         super().__init__()
         self.tasks = {}
         self.file_path = file_path
-        self.load_tasks()  # Load tasks from the file at initialization
+        self.load_tasks()  
 
     def send_request(self, url: str, method: Literal["get", "post", "put", "delete", "patch"], data: Dict[str, Any], headers: Optional[Dict[str, Any]]) -> None:
         print(f"Sending {method.upper()} request to {url} with data: {data} and headers: {headers}")
@@ -38,7 +38,10 @@ class TaskScheduler(RedisService):
 
     def schedule_one_time_task(self, task_id: int, url: str, method: Literal["get", "post", "put", "delete", "patch"], data: Dict[str, Any], headers: Optional[Dict[str, Any]], execute_at: str, timezone: str) -> None:
         print(f"Scheduling one-time task {task_id}")
-        tz = pytz.timezone(timezone)
+        try:
+            tz = pytz.timezone(timezone)
+        except:
+            tz = pytz.timezone("Europe/Amsterdam")
         execute_at_aware = tz.localize(datetime.strptime(execute_at, '%H:%M'))
 
         self.tasks[task_id] = {
@@ -142,29 +145,24 @@ class TaskScheduler(RedisService):
             
     def save_tasks(self) -> None:
         """
-        Save the current tasks dictionary to Redis.
+        Save all tasks in the current dictionary to Redis.
+        Each task is stored as a separate hash entry in the "tasks" key.
         """
-        try:
-            self._r.set("tasks", json.dumps(self.tasks))
-            print("Tasks have been saved to Redis.")
-        except redis.RedisError as e:
-            print(f"Failed to save tasks to Redis: {e}")
+        for task_id, task_data in self.tasks.items():
+            self.save_task(task_id, task_data)
+        print("All tasks have been saved to Redis.")
+
 
     def load_tasks(self) -> None:
         """
-        Load the tasks from Redis into the tasks dictionary.
+        Load the tasks from Redis into the tasks dictionary and schedule them.
         """
-        try:
-            tasks_json = self._r.get("tasks")
-            if tasks_json:
-                self.tasks = json.loads(tasks_json)
-                print("Tasks have been loaded from Redis.")
-                self.schedule_loaded_tasks()
-            else:
-                print("No tasks found in Redis.")
-        except redis.RedisError as e:
-            print(f"Failed to load tasks from Redis: {e}")
-            self.tasks = {}
+        self.tasks = self.get_all_tasks()
+        if self.tasks:
+            print("Tasks have been loaded from Redis.")
+            self.schedule_loaded_tasks()
+        else:
+            print("No tasks found in Redis.")
 
 
     def schedule_loaded_tasks(self) -> None:
@@ -235,12 +233,12 @@ class TaskScheduler(RedisService):
         if task_id in self.tasks:
             print(f"Deleting task {task_id}")
             del self.tasks[task_id]
-            self.save_tasks()
-            
+            self.delete_task(task_id)
             # Clear the scheduled job from `schedule`
             schedule.clear(task_id)
         else:
             print(f"Task {task_id} does not exist.")
+
 
     def delete_all_tasks(self) -> None:
         """Delete all the tasks"""

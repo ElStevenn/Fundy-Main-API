@@ -31,7 +31,7 @@ red_container=$(docker container ls | grep $redis_container)
 
 # If the container doesn't exist, start it with the network and volume
 if [ -z "$red_container" ]; then
-    docker run -d --name $redis_container --network $network_name -p 6379:6379 -v $volume_name:/data redis 
+    docker run -d --name $redis_container -p 6379:6379 -v $volume_name:/data redis 
     echo "Redis container '$redis_container' started."
 else
     echo "Redis container '$redis_container' is already running."

@@ -5,7 +5,7 @@ FROM python:3.12-slim
 WORKDIR /
 
 # Install pip packages directly
-RUN pip install --no-cache-dir fastapi aiohttp uvicorn pydantic requests schedule bs4 lxml pytz httpx python-dotenv
+RUN pip install --no-cache-dir fastapi aiohttp uvicorn pydantic requests schedule bs4 lxml pytz httpx python-dotenv redis
 
 # Copy the rest of the application code into the container
 COPY . .

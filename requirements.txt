@@ -10,4 +10,3 @@ pytz
 python-dotenv
 httpx
 redis
-docker

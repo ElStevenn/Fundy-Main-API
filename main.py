@@ -131,7 +131,8 @@ async def schedule_new_task(
         
         return {"status": "success", "task_id": task_id, "message": "The task for one time has been successfully scheduled", "timezone": client_timezone}
     except Exception as e:
-        return {"status": "error", "error": f"There was an unexpected error scheduling a single task: {e}"}
+        return {"status": "error", "message": f"There was an unexpected error scheduling a task: {e}"}
+
 
 @app.post(
     "/schedule_interval", 
