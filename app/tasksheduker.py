@@ -238,7 +238,7 @@ class TaskScheduler(RedisService):
             # Clear the scheduled job from `schedule`
             schedule.clear(task_id)
         else:
-            raise HTTPException(status_code=404, detail=f"Task {task_id} does not exist")
+            raise HTTPException(status_code=404, detail=f"Task {task_id} does not exist in the schedule node")
 
 
 

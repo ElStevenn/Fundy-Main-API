@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from app import assets_alert, redis_service, schemas, tasksheduker
+from app import redis_service, schemas, tasksheduker
 import uuid, asyncio, schedule, os
 
 

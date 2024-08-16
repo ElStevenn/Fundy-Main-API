@@ -1,6 +1,7 @@
 #!/bin/bash
 
 redis_container="redis_tasks"
+network_name="my_network"
 
 # Stop and remove container
 docker container stop scheduler_v1
@@ -16,8 +17,8 @@ if [ "$response" == "y" ]; then
     # Build container
     docker build -t scheduler .
 
-    # Run container on the needed port
-    docker run -d -p 80:80 --name scheduler_v1 scheduler
+    # Run container on the custom network
+    docker run -d -p 80:80 --name scheduler_v1 --network $network_name scheduler
 
     # Get relevant data
     ip=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' scheduler_v1)
@@ -34,7 +35,7 @@ else
 
     # If the container doesn't exist, start it with the volume
     if [ -z "$red_container" ]; then
-        docker run -d --name $redis_container -v data_volume:/data redis
+        docker run -d --name $redis_container --network $network_name -v data_volume:/data redis
         echo "Redis container '$redis_container' started."
     else
         echo "Redis container '$redis_container' is already running."
