@@ -281,7 +281,7 @@ def proofs():
     scheduler = TaskScheduler()
 
     task_data = {
-        "url": "http://18.116.69.127:8000/notificate_node_issue",
+        "url": "http://3.141.197.183:8000/notificate_node_issue",
         "method": "post",
         "data": { "error_type": "bug", "description": "idk if it works but if u are rividing this i love u"},
         "headers": {},
