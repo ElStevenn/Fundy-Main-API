@@ -1,4 +1,5 @@
 import time
+import socket
 import redis
 import schedule
 import httpx
@@ -10,7 +11,14 @@ import pytz
 
 class RedisService:
     def __init__(self):
-        self._r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+        hostname = socket.gethostname()
+            
+        if hostname == 'expected_server_hostname':  
+            redis_host = 'redis_tasks'  
+        else:
+            redis_host = 'localhost' 
+        
+        self._r = redis.Redis(host=redis_host, port=6379, decode_responses=True)
         self.ensure_correct_key_type()
 
     def ensure_correct_key_type(self):

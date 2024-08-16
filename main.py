@@ -311,14 +311,75 @@ async def schedule_limited_minutes(request_body: schemas.IntervalMinutesTask, ba
         return {"status": "error", "message": f"There was an unexpected error executing a limited number of tasks: {e}"}
 
 
-@app.post("/schedule_datetime", description="Schedule a task to specific datetime", tags=["Schedule By Time"])
+@app.post(
+    "/schedule_datetime", 
+    description=(
+        "**Schedule a Task for a Specific Datetime**\n\n"
+        "This endpoint allows you to schedule an HTTP request to be executed at a specific date and time in the future. "
+        "You can specify details such as the URL, HTTP method, headers, and data payload, and the request will be automatically triggered at the specified datetime.\n\n"
+        
+        "### Key Features:\n"
+        "- **Timezone Handling**: The request will be executed according to the specified timezone. If the datetime provided is naive (without timezone info), it will be localized to the specified timezone.\n"
+        "- **Unique Task Identification**: Each scheduled task is assigned a unique UUID, which can be used to track or cancel the task later.\n"
+        "- **Flexible Scheduling**: You can schedule tasks using any valid HTTP method (e.g., GET, POST, PUT, DELETE) and include headers and data as needed.\n\n"
+        
+        "### Request Parameters:\n"
+        "- **url**: The endpoint where the HTTP request will be sent. This should be a valid URL.\n"
+        "- **method**: The HTTP method to use for the request. Supported methods include `GET`, `POST`, `PUT`, `DELETE`, and `PATCH`.\n"
+        "- **data**: (Optional) A JSON object containing the data to be sent with the request. This is typically used with `POST` and `PUT` methods.\n"
+        "- **headers**: (Optional) A JSON object containing any HTTP headers that should be included in the request.\n"
+        "- **datetime_task**: The specific datetime when the request should be sent. This should be provided in ISO 8601 format.\n"
+        "- **timezone**: (Optional) The timezone to use when scheduling the task. If not provided, the server will use the timezone information from `datetime_task` or assume UTC.\n\n"
+        
+        "### Response:\n"
+        "The response will indicate whether the task was successfully scheduled, along with a unique `task_id` that you can use to reference the task in future operations.\n\n"
+        
+        "### Example Usage:\n"
+        "1. **Schedule a Task to Run at a Specific Datetime**\n\n"
+        "   Request Body:\n"
+        "   ```json\n"
+        "   {\n"
+        "       \"url\": \"https://api.example.com/notify\",\n"
+        "       \"method\": \"POST\",\n"
+        "       \"data\": {\"message\": \"Hello, World!\"},\n"
+        "       \"headers\": {\"Authorization\": \"Bearer token\"},\n"
+        "       \"datetime_task\": \"2024-08-16T14:30:00\",\n"
+        "       \"timezone\": \"Europe/Amsterdam\"\n"
+        "   }\n"
+        "   ```\n\n"
+        "   Response:\n"
+        "   ```json\n"
+        "   {\n"
+        "       \"status\": \"success\",\n"
+        "       \"task_id\": \"123e4567-e89b-12d3-a456-426614174000\",\n"
+        "       \"message\": \"The task has been scheduled to run at the specified datetime.\"\n"
+        "   }\n"
+        "   ```\n\n"
+        
+        "### Error Handling:\n"
+        "If there is an error while scheduling the task, the response will contain an error message detailing what went wrong. This could happen due to invalid parameters, "
+        "an issue with the request format, or other unexpected errors.\n\n"
+        
+        "### Notes:\n"
+        "- You can use the `task_id` returned in the response to delete or query the status of the scheduled task."
+    ),
+    tags=["Schedule By Time"]
+)
 async def schedule_a_task_datetime(request_boddy: schemas.DatetimeTask):
-    task_id = str(uuid.uuid4())
-    task_scheduler.schedule_datetime_task(
-        task_id=task_id
-    )
+    try:
+        task_id = str(uuid.uuid4())
+        task_scheduler.schedule_datetime_task(
+            task_id=task_id,
+            url=request_boddy.url,
+            method=request_boddy.method,
+            data=request_boddy.data,
+            headers=request_boddy.headers,
+            datetime_task=request_boddy.task_datetime
+        )
 
-    return 
+        return {"status": "success", "message": "Datetime task has been successfully scheduled at {request_boddy.task_datetime}", "task_id": task_id}
+    except Exception as e:
+        return {"status": "error", "message": f"There was an unexpected error while scheduling datetime task: {e}"}
 
 @app.get(
     "/tasks", 

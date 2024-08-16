@@ -124,9 +124,33 @@ class TaskScheduler(RedisService):
         print(f"Executing a task every {interval_minutes} minutes as an id {task_id}")
         schedule.every(interval_minutes).minutes.do(self.run_scheduled_task, task_id).tag(task_id)
 
-    def schedule_datetime_task(self, task_id: int, url: str, method: Literal["get", "post", "put", "delete", "patch"], data: Dict[str, Any], headers: Optional[Dict[str, Any]], datetime_task: datetime):
-        pass
-    
+    def schedule_datetime_task(self, task_id: int, url: str, method: Literal["get", "post", "put", "delete", "patch"], data: Dict[str, Any], headers: Optional[Dict[str, Any]], timezone: str, datetime_task: datetime):
+        tz = pytz.timezone(timezone)
+
+        # Check if the datetime_task is naive or aware
+        if datetime_task.tzinfo is None:
+            # If naive, localize it
+            execute_at_aware = tz.localize(datetime_task)
+        else:
+            # If already timezone-aware, convert to the desired timezone
+            execute_at_aware = datetime_task.astimezone(tz)
+
+        run_time = execute_at_aware.strftime('%H:%M')  # Corrected format to only time
+
+        self.tasks[task_id] = {
+            "type": "datetime_task",
+            "url": url,
+            "data": data,
+            "method": method,
+            "headers": headers,
+            "timezone": timezone,
+            "datetime_task": execute_at_aware.isoformat()
+        }
+        print(f"Scheduling a task that will be executed at {run_time} and has an id {task_id}")
+
+        schedule.every().day.at(run_time).do(self.run_scheduled_task, task_id).tag(task_id)
+
+
 
     def run_scheduled_task(self, task_id: str) -> None:
         print(f"Attempting to run task {task_id}")
