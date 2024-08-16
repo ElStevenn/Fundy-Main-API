@@ -370,11 +370,8 @@ async def list_tasks():
     tags=["Schedule By Time"]
 )
 async def remove_task(task_id: str):
-    try:
-        task_scheduler.delete_task(task_id)
-        return {"status": "success", "message": f"Task with ID {task_id} has been deleted!"}
-    except Exception as e:
-        return {"status": "error", "message": f"There was an unexpected error: {e}"}
+    task_scheduler.delete_task(task_id)
+    return {"status": "success", "message": f"Task with ID {task_id} has been deleted!"}
 
 @app.delete(
     "/delete_all_tasks", 

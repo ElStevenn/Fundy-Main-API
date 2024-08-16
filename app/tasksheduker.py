@@ -4,6 +4,7 @@ import schedule
 import httpx
 import json
 import os
+from fastapi import HTTPException
 from datetime import datetime, timedelta
 from app.redis_service import RedisService
 from typing import Dict, Any, Optional, Union, Literal
@@ -233,18 +234,21 @@ class TaskScheduler(RedisService):
         if task_id in self.tasks:
             print(f"Deleting task {task_id}")
             del self.tasks[task_id]
-            self.delete_task(task_id)
+            super().delete_task(task_id)  # Call the delete_task method from RedisService
             # Clear the scheduled job from `schedule`
             schedule.clear(task_id)
         else:
-            print(f"Task {task_id} does not exist.")
+            raise HTTPException(status_code=404, detail=f"Task {task_id} does not exist")
+
 
 
     def delete_all_tasks(self) -> None:
-        """Delete all the tasks"""
-        self.tasks = {}
-        self.save_tasks()
-        schedule.clear()
+        """Delete all the tasks from both the in-memory dictionary and Redis."""
+        self.tasks.clear()  # Clear the in-memory tasks dictionary
+        super().delete_all()  # Call the delete_all method from RedisService to clear Redis
+        schedule.clear()  # Clear all scheduled jobs
+        print("All tasks have been deleted.")
+
 
     def conf(self) -> dict:
         if os.path.exists('config/conf_file.json'):
