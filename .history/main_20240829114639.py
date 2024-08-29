@@ -365,7 +365,7 @@ async def schedule_limited_minutes(request_body: schemas.IntervalMinutesTask, ba
     ),
     tags=["Schedule By Time"]
 )
-async def schedule_a_task_datetime(request_boddy: schemas.DatetimeTask, background_tasks: BackgroundTasks):
+async def schedule_a_task_datetime(request_boddy: schemas.DatetimeTask):
     try:
         task_id = str(uuid.uuid4())
         task_scheduler.schedule_datetime_task(
@@ -374,14 +374,12 @@ async def schedule_a_task_datetime(request_boddy: schemas.DatetimeTask, backgrou
             method=request_boddy.method,
             data=request_boddy.data,
             headers=request_boddy.headers,
-            timezone=request_boddy.timezone,
-            datetime_task=request_boddy.task_datetime # date and time when the task must be executed and ISO format
+            datetime_task=request_boddy.task_datetime # date and time when the 
         )
-        
 
         return {"status": "success", "message": "Datetime task has been successfully scheduled at {request_boddy.task_datetime}", "task_id": task_id}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"There was an unexpected error while scheduling datetime task: {e}")
+        return {"status": "error", "message": f"There was an unexpected error while scheduling datetime task: {e}"}
 
 @app.get(
     "/tasks", 

@@ -374,10 +374,9 @@ async def schedule_a_task_datetime(request_boddy: schemas.DatetimeTask, backgrou
             method=request_boddy.method,
             data=request_boddy.data,
             headers=request_boddy.headers,
-            timezone=request_boddy.timezone,
-            datetime_task=request_boddy.task_datetime # date and time when the task must be executed and ISO format
+            datetime_task=request_boddy.task_datetime # date and time when the task must be executed
         )
-        
+        print("response -> ", )
 
         return {"status": "success", "message": "Datetime task has been successfully scheduled at {request_boddy.task_datetime}", "task_id": task_id}
     except Exception as e:

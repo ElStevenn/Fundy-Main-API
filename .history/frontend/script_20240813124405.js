@@ -237,7 +237,7 @@ get_all_tasks().then(tasks => {
     
     if (!tasks || Object.keys(tasks).length === 0) {
         const noTasksElement = document.createElement('li');
-        noTasksElement.textContent  = "No tasks available";
+        noTasksElement.textContent = "No tasks available";
         taskList.appendChild(noTasksElement);
     } else {
         console.log("Tasks fetched:", tasks); // Log the tasks fetched

@@ -76,6 +76,5 @@ if __name__ == "__main__":
     }
 
     # Save the task to Redis
-    # redis_service.save_task(task_id, task_data)
-    print(redis_service.get_all_tasks())
-    # print(redis_service.delete_all())
+    redis_service.save_task(task_id, task_data)
+    # print(redis_service.get_all_tasks())

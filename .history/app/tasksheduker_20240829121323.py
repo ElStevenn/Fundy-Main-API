@@ -198,7 +198,6 @@ class TaskScheduler(RedisService):
         Reschedule the tasks after loading them from Redis.
         """
         for task_id, task in self.tasks.items():
-            print(task)
             if task["type"] == "one_time":
                 execute_at = datetime.fromisoformat(task["execute_at"])
                 timezone = pytz.timezone(task["timezone"])

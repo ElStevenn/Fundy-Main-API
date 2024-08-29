@@ -135,9 +135,9 @@ class TaskScheduler(RedisService):
             # If already timezone-aware, convert to the desired timezone
             execute_at_aware = datetime_task.astimezone(tz)
 
-        run_time = execute_at_aware.strftime('%H:%M')  
+        run_time = execute_at_aware.strftime('%H:%M')  # Corrected format to only time
 
-        task_data = {
+        self.tasks[task_id] = {
             "type": "datetime_task",
             "url": url,
             "data": data,
@@ -146,11 +146,8 @@ class TaskScheduler(RedisService):
             "timezone": timezone,
             "datetime_task": execute_at_aware.isoformat()
         }
-
-        self.tasks[task_id] = task_data
-        self.save_task(task_id, task_data)
-
         print(f"Scheduling a task that will be executed at {run_time} and has an id {task_id}")
+
         schedule.every().day.at(run_time).do(self.run_scheduled_task, task_id).tag(task_id)
 
 
@@ -198,7 +195,6 @@ class TaskScheduler(RedisService):
         Reschedule the tasks after loading them from Redis.
         """
         for task_id, task in self.tasks.items():
-            print(task)
             if task["type"] == "one_time":
                 execute_at = datetime.fromisoformat(task["execute_at"])
                 timezone = pytz.timezone(task["timezone"])
@@ -256,20 +252,9 @@ class TaskScheduler(RedisService):
                     task["headers"],
                     interval
                 )
+            
             elif task["type"] == "datetime_task":
-                datetime_task =  datetime.fromisoformat(task["datetime_task"])
-                self.schedule_datetime_task(
-                    task_id,
-                    task["url"],
-                    task["method"],
-                    task["data"],
-                    task["headers"],
-                    task["timezone"],
-                    datetime_task
-                )
-
-
-
+                datetime_task = task["datetime_task"]
 
     def delete_task(self, task_id: str) -> None:
         """Deletes a task by task_id and removes it from the schedule."""

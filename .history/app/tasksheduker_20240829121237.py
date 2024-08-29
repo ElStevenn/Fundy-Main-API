@@ -135,7 +135,7 @@ class TaskScheduler(RedisService):
             # If already timezone-aware, convert to the desired timezone
             execute_at_aware = datetime_task.astimezone(tz)
 
-        run_time = execute_at_aware.strftime('%H:%M')  
+        run_time = execute_at_aware.strftime('%H:%M')  # Corrected format to only time
 
         task_data = {
             "type": "datetime_task",
@@ -198,7 +198,6 @@ class TaskScheduler(RedisService):
         Reschedule the tasks after loading them from Redis.
         """
         for task_id, task in self.tasks.items():
-            print(task)
             if task["type"] == "one_time":
                 execute_at = datetime.fromisoformat(task["execute_at"])
                 timezone = pytz.timezone(task["timezone"])

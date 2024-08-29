@@ -375,7 +375,7 @@ async def schedule_a_task_datetime(request_boddy: schemas.DatetimeTask, backgrou
             data=request_boddy.data,
             headers=request_boddy.headers,
             timezone=request_boddy.timezone,
-            datetime_task=request_boddy.task_datetime # date and time when the task must be executed and ISO format
+            datetime_task=request_boddy.task_datetime # date and time when the task must be executed
         )
         
 
