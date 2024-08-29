@@ -13,7 +13,7 @@ class RedisService:
     def __init__(self):
         hostname = socket.gethostname()
             
-        if hostname == 'ip-172-31-29-24':  
+        if hostname == 'expected_server_hostname':  
             redis_host = 'redis_tasks'  
         else:
             redis_host = 'localhost' 

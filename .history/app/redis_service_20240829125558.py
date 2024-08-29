@@ -18,7 +18,7 @@ class RedisService:
         else:
             redis_host = 'localhost' 
         
-        self._r = redis.Redis(host=redis_host, port=6379, decode_responses=True)
+        self._r = redis.Redis(host='redis_tasks', port=6379, decode_responses=True)
         self.ensure_correct_key_type()
 
     def ensure_correct_key_type(self):
