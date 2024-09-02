@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from app import redis_service, schemas, tasksheduker
+from app.founding_rate_service.main_sercice_layer import FoundinRateService
 import uuid, asyncio, schedule, os
 
 
@@ -61,6 +62,9 @@ app.add_middleware(
 
 task_scheduler = tasksheduker.TaskScheduler()
 redis_service_ = redis_service.RedisService()
+founding_rate_service = FoundinRateService()
+background_task = None 
+
 
 app.mount("/mini_frontend", StaticFiles(directory="frontend"), name="static")
 
@@ -494,6 +498,44 @@ async def set_new_configuration(request: Request):
 async def add_new_alert_if_crypto_reaches_price(request_body: schemas.CryptoAlertTask):
     # Placeholder for future implementation
     return {"status": "success", "message": "This feature is under development"}
+
+
+
+
+# PART 3 | FOUNDING RATE SERVICE
+
+@app.get("/founding_rate_service/status", description="", tags=['Founding Rate Service'])
+async def see_founding_rate_service():
+    """Check the status of the Founding Rate Service."""
+    global background_task
+    if background_task and not background_task.done():
+        return {"status": "running"}
+    else:
+        return {"status": "stopped"}
+
+
+@app.post("/founding_rate_service/start", description="", tags=['Founding Rate Service'])
+async def start_founding_rate_service(background_tasks: BackgroundTasks):
+    """Start the Founding Rate Service."""
+    global background_task
+    if background_task and not background_task.done():
+        raise HTTPException(status_code=400, detail="Service is already running")
+
+    # Start the service using the correct method
+    background_task = background_tasks.add_task(founding_rate_service.start_service)  # Correct method to handle scheduling
+    return {"status": "Service started"}
+
+
+@app.delete("/founding_rate_service/stop", description="", tags=['Founding Rate Service'])
+async def stop_founding_rate_service():
+    """Stop the Founding Rate Service."""
+    global background_task
+    if background_task and not background_task.done():
+        background_task.cancel()  # Correctly stop the task
+        return {"status": "Service stopped"}
+    else:
+        raise HTTPException(status_code=400, detail="Service is not running")
+
 
 if __name__ == "__main__":
     import uvicorn

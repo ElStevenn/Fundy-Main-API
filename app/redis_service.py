@@ -14,11 +14,11 @@ class RedisService:
         hostname = socket.gethostname()
             
         if hostname == 'ip-172-31-29-24':  
-            redis_host = 'redis_tasks'  
+            redis_host = 'redis_tasks'
         else:
-            redis_host = 'localhost' 
+            redis_host = 'localhost'
         
-        self._r = redis.Redis(host=redis_host, port=6379, decode_responses=True)
+        self._r = redis.Redis(host=redis_host, port='6378', decode_responses=True)
         self.ensure_correct_key_type()
 
     def ensure_correct_key_type(self):
@@ -61,6 +61,29 @@ class RedisService:
         self._r.delete("tasks")
         print("All tasks have been deleted from Redis.")
 
+    """
+        READ & WRITE & UPDATE $ DELETE for founding rate sercice
+    """
+    def add_new_crypto_lead(self, symbol: str, fundingRate: Union[float, int]) -> None:
+        """Add a new crypto lead to Redis."""
+        self.ensure_correct_key_type()
+        crypto_lead_key = f"crypto_leads:{symbol}"
+        crypto_lead_data = {"symbol": symbol, "fundingRate": fundingRate}
+        self._r.hset("crypto_leads", crypto_lead_key, json.dumps(crypto_lead_data))
+    
+    def read_all_crypto_lead(self) -> Dict[str, Any]:
+        """Read all crypto leads from Redis."""
+        self.ensure_correct_key_type()
+        crypto_leads = self._r.hgetall("crypto_leads")
+        return [json.loads(data[1]) for data in crypto_leads.items()]
+
+
+
+    def delete_all_crypto_leads(self) -> None:
+        """Delete all crypto leads in Redis."""
+        self._r.delete("crypto_leads")
+
+        
 if __name__ == "__main__":
     redis_service = RedisService()
 
@@ -77,5 +100,5 @@ if __name__ == "__main__":
 
     # Save the task to Redis
     # redis_service.save_task(task_id, task_data)
-    print(redis_service.get_all_tasks())
-    # print(redis_service.delete_all())
+    # print(redis_service.read_all_crypto_lead())
+    print(redis_service.delete_all_crypto_leads())

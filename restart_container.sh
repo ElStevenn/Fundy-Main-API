@@ -35,7 +35,7 @@ else
 
     # If the container doesn't exist, start it with the volume
     if [ -z "$red_container" ]; then
-        docker run -d --name $redis_container --network $network_name -v data_volume:/data redis
+        docker run -d --name redis_tasks -v data_volume:/data -p 6378:6379 redis:latest
         echo "Redis container '$redis_container' started."
     else
         echo "Redis container '$redis_container' is already running."
