@@ -29,4 +29,8 @@ class ScheduleLayer:
             await asyncio.sleep(1)
 
     def start_background(self):
-        asyncio.create_task(self.run_pending())
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(self.run_pending())
+        else:
+            loop.run_until_complete(self.run_pending())
