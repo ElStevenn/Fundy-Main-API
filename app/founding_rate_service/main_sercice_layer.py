@@ -44,7 +44,7 @@ class FoundinRateService():
         # Schedule `innit_procces` 5 minutes before the next scheduled time
         next_execution_time = self.get_next_execution_time() - timedelta(minutes=5)
         print(f"Scheduled 'innit_procces' at {next_execution_time.strftime('%H:%M')} in timezone {self.timezone}")
-        self.scheduler.schecule_process_time(next_execution_time, self.innit_procces)
+        self.scheduler.schecule_process_time(next_execution_time, lambda: asyncio.run(self.innit_procces()))
 
     async def innit_procces(self):
         """Main process to trigger the rest of the components of this program."""
@@ -73,13 +73,14 @@ class FoundinRateService():
             print("Cryptos found for processing!")
             stmx = self.get_next_execution_time()
 
-            # Schedule task to open orders 5 minutes before the next execution time
-            next_execution_time = stmx - timedelta(minutes=5)
-            print("Next execution time ->", next_execution_time)
-            self.scheduler.schecule_process_time(next_execution_time, self.open_orders)
+            # Schedule task to open the order (1 min before the execution)
+            next_execution_time = stmx - timedelta(minutes=1)
+            print("Next execution time to open the order->", next_execution_time)
+            self.scheduler.schecule_process_time(next_execution_time, lambda: asyncio.run(self.open_orders(stmx)))
 
-    async def open_orders(self):
+    async def open_orders(self, execution_time: datetime):
         # GET SAVED CRYPTOS ->
+        print("The orders are being opened!")
         saved_cryptos = redis_service.read_all_crypto_lead()
 
         final_trade_data = []
@@ -92,9 +93,13 @@ class FoundinRateService():
             }
             final_trade_data.append(data)
 
-        await asyncio.gather(*[bitget_client.open_order(**data) for data in final_trade_data])            
+        await asyncio.gather(*[bitget_client.open_order(**data) for data in final_trade_data])
+
+        next_execution_time = execution_time + timedelta(seconds=15)
+        self.scheduler.schecule_process_time(next_execution_time, lambda: asyncio.run(self.close_orders()))
 
     async def close_orders(self):
+        print("The order are beeing closing..")
         # Get SAVED CRYPTOS ->
         saved_cryptos = redis_service.read_all_crypto_lead()
 

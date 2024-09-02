@@ -15,10 +15,12 @@ class RedisService:
             
         if hostname == 'ip-172-31-29-24':  
             redis_host = 'redis_tasks'
+            port = '6379'
         else:
             redis_host = 'localhost'
-        
-        self._r = redis.Redis(host=redis_host, port='6378', decode_responses=True)
+            port = '6379'
+
+        self._r = redis.Redis(host=redis_host, port=port, decode_responses=True)
         self.ensure_correct_key_type()
 
     def ensure_correct_key_type(self):
