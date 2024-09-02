@@ -17,11 +17,13 @@ class ScheduleLayer:
         print(f"Scheduled '{function_to_call.__name__}' at {time_str} in timezone {self.timezone}")
 
     def run_async(self, function_to_call: Callable[[], Coroutine]):
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            asyncio.ensure_future(function_to_call())
-        else:
+        # Create a new event loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
             loop.run_until_complete(function_to_call())
+        finally:
+            loop.close()
 
     async def run_pending(self):
         while True:
@@ -29,8 +31,5 @@ class ScheduleLayer:
             await asyncio.sleep(1)
 
     def start_background(self):
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            asyncio.ensure_future(self.run_pending())
-        else:
-            loop.run_until_complete(self.run_pending())
+        # Run the event loop for the scheduler in a new thread
+        asyncio.run(self.run_pending())
