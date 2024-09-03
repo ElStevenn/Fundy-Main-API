@@ -84,7 +84,6 @@ class BitgetClient:
             "leverage": LEVERAGE
         }
 
-
         async with aiohttp.ClientSession() as session:
             async with session.post(url, headers=headers, json=data) as response:
                 content_type = response.headers.get('Content-Type')
@@ -101,9 +100,12 @@ class BitgetClient:
             "password": "mierda69",
             "Content-Type": "application/json"  
         }
+        data = {
+            "price": 0
+        }
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers) as response:
+            async with session.post(url, headers=headers, data=data) as response:
                 content_type = response.headers.get('Content-Type')
                 if content_type and 'application/json' in content_type:
                     data = await response.json()
@@ -120,6 +122,12 @@ async def main_testing():
     # Open order test 
     bitget_client = BitgetClient()
     api_response = await bitget_client.open_order(symbol="AVAIL", mode="short", amount=10)
+    print(api_response)
+
+
+async def close_order_test():
+    bitget_client = BitgetClient()
+    api_response = bitget_client.close_order("URDI")
     print(api_response)
 
 if __name__ == "__main__":

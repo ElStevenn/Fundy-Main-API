@@ -8,7 +8,7 @@ class ScheduleLayer:
     def __init__(self, timezone):
         self.timezone = timezone
 
-    def schecule_process_time(self, time, function_to_call: Callable[[], Coroutine]):
+    def schecule_process_time(self, time: datetime, function_to_call: Callable[[], Coroutine]):
         local_time = time.astimezone(pytz.timezone(self.timezone))
         time_str = local_time.strftime("%H:%M")
 

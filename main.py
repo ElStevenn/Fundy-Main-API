@@ -293,7 +293,7 @@ async def schedule_interval(request: Request, request_body: schemas.LimitedInter
         
         "### Notes:\n"
         "- You can use the `task_id` returned in the response to delete or query the status of the scheduled task.\n"
-        "- The task will continue to run every specified number of minutes until it is manually deleted."
+        "- The task will continue to run every specified number of minutes until it is manually deleteds"
     ), 
     tags=["Schedule By Time"]
 )
@@ -535,6 +535,9 @@ async def stop_founding_rate_service():
         return {"status": "Service stopped"}
     else:
         raise HTTPException(status_code=400, detail="Service is not running")
+
+
+
 
 
 if __name__ == "__main__":

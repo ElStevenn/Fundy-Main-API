@@ -48,3 +48,9 @@ class Return_SON(BaseModel):
     task_id: uuid.UUID
     message: str
     timezone: str
+
+
+# DELETE THIS
+class OpenOrderTest(BaseModel):
+    symbol: str
+    schedule_in: int
