@@ -3,9 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from datetime import datetime, timedelta
+from pytz import timezone
+import uuid, asyncio, schedule, os
+
 from app import redis_service, schemas, tasksheduker
 from app.founding_rate_service.main_sercice_layer import FoundinRateService
-import uuid, asyncio, schedule, os
+from app.founding_rate_service.schedule_layer import ScheduleLayer
+from app.founding_rate_service.bitget_layer import BitgetClient
 
 
 @asynccontextmanager
@@ -40,7 +45,7 @@ app = FastAPI(
     ),
     lifespan=lifespan,
     version="1.0",
-    servers=[{"url":"http://3.143.209.3/", "description":"USA"},{"url":"http://localhost/", "description":"EU"}]
+    servers=[{"url":"http://18.101.108.204/", "description":"USA"},{"url":"http://localhost/", "description":"EU"}]
 )
 
 
@@ -507,11 +512,8 @@ async def add_new_alert_if_crypto_reaches_price(request_body: schemas.CryptoAler
 @app.get("/founding_rate_service/status", description="", tags=['Founding Rate Service'])
 async def see_founding_rate_service():
     """Check the status of the Founding Rate Service."""
-    global background_task
-    if background_task and not background_task.done():
-        return {"status": "running"}
-    else:
-        return {"status": "stopped"}
+
+    return {"status": founding_rate_service.status}
 
 
 @app.post("/founding_rate_service/start", description="", tags=['Founding Rate Service'])
@@ -521,8 +523,10 @@ async def start_founding_rate_service(background_tasks: BackgroundTasks):
     if background_task and not background_task.done():
         raise HTTPException(status_code=400, detail="Service is already running")
 
+    
+
     # Start the service using the correct method
-    background_task = background_tasks.add_task(founding_rate_service.start_service)  # Correct method to handle scheduling
+    background_task = background_tasks.add_task(founding_rate_service.start_service)  
     return {"status": "Service started"}
 
 
@@ -531,12 +535,43 @@ async def stop_founding_rate_service():
     """Stop the Founding Rate Service."""
     global background_task
     if background_task and not background_task.done():
-        background_task.cancel()  # Correctly stop the task
+        background_task.cancel()  
+        founding_rate_service.stop_service() 
+
         return {"status": "Service stopped"}
     else:
         raise HTTPException(status_code=400, detail="Service is not running")
 
+schedule_service = ScheduleLayer("Europe/Amsterdam"); bitget_client = BitgetClient()
+def next_execution_time_test(minutes = 5) -> datetime:
+    today = datetime.now(timezone('Europe/Amsterdam'))
+    next_time = today + timedelta(minutes=minutes)
+    return next_time
 
+
+@app.post("/testings/schedule_function", tags=['Testing'])
+async def test_schedule_function(request_body: schemas.OpenOrderTest):
+    # Calculate execution times for open and close order
+    open_order_time = next_execution_time_test(request_body.open_order_in)
+    close_order_time = next_execution_time_test(request_body.close_order_in)
+
+    # First Execution (Open Order)
+    schedule_service.schedule_process_time(
+        open_order_time,                  
+        bitget_client.open_order,         
+        request_body.symbol,              
+        '10',                             
+        request_body.mode                           
+    )
+
+    # Second Execution (Close Order)
+    schedule_service.schedule_process_time(
+        close_order_time,                 
+        bitget_client.close_order,        
+        request_body.symbol               
+    )
+
+    return {"message": f"Functions scheduled successfully, the first execution time will be at {open_order_time.strftime("%H:%M")}"}
 
 
 

@@ -9,6 +9,7 @@ from app.redis_service import RedisService
 from app.founding_rate_service.schedule_layer import ScheduleLayer
 from app.founding_rate_service.bitget_layer import BitgetClient
 
+
 """
     Test to see if everything works properly and adjusted with my thoughts
 """
@@ -30,8 +31,11 @@ async def test1():
     second_execution_time = next_execution_time_test(5)
 
 
-    real_scheduler.add_job(func=bitget_client.open_order, args=["ORDI", 10, "short"], trigger='date', run_date=first_execution_time)
-    real_scheduler.add_job(func=bitget_client.close_order, args=["ORDI"], trigger='date', run_date=second_execution_time)
+    # real_scheduler.add_job(func=bitget_client.open_order, args=["ORDI", 10, "short"], trigger='date', run_date=first_execution_time)
+    # real_scheduler.add_job(func=bitget_client.close_order, args=["ORDI"], trigger='date', run_date=second_execution_time)
+
+    real_scheduler.add_job(func=a_function, args=["Pompeye!"], trigger='date', run_date=second_execution_time)
+    real_scheduler.add_job(func=a_function, args=["Far-right parametter!"], trigger='date', run_date=second_execution_time)
 
     print(f"Scheduled execution time: {first_execution_time} & open order")
     print(f"Scheduled execituon time: {second_execution_time} & close order")
@@ -43,6 +47,11 @@ async def test1():
     await asyncio.Event().wait()  # This will keep the event loop running indefinitely
 
 
+
+async def a_function(patametter):
+    print(f"Hello! this is a function with the parametter: {patametter}")
+    await asyncio.sleep(1.0)
+    print(f"The function with the parametter {patametter} has finished!")
 
 
 if __name__ == "__main__":

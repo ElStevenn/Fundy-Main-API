@@ -6,16 +6,39 @@ import httpx
 import json
 import os
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, Union, Literal
+from typing import Dict, Any, Optional, Union, Literal, TypedDict, List
 import pytz
+
+class FoundingRate(TypedDict):
+    symbol: str
+    fundingRate: float # New Founding Rate
+
+class BotHistoricalPNL(TypedDict):
+    # Important Data
+    id: str
+    symbol: str
+    operation_datetime: datetime
+
+    # Secondary Data
+    pnl: str
+    avg_entry_price: str
+    side: Literal['long', 'short']
+    closed_value: str
+
+    # Irelevant data
+    opening_fee: str
+    closing_fee: str
+    net_profits: str
+    
+    
 
 class RedisService:
     def __init__(self):
         hostname = socket.gethostname()
             
-        if hostname == 'ip-172-31-29-24':  
+        if hostname == 'ip-172-31-3-153':  
             redis_host = 'redis_tasks'
-            port = '6379'
+            port = '6378'
         else:
             redis_host = 'localhost'
             port = '6379'
@@ -85,6 +108,30 @@ class RedisService:
         """Delete all crypto leads in Redis."""
         self._r.delete("crypto_leads")
 
+
+    """
+    READ & WRITE & UPDATE % DELETE to save the historical PNL
+    """
+
+    def add_new_pnl(self, data: BotHistoricalPNL):
+        """Add a new PNL record to Redis."""
+        self.ensure_correct_key_type()
+        pnl_key = f"historical_pnl:{data['id']}"
+        self._r.hset("historical_pnl", pnl_key, json.dumps(data, default=str))
+
+    
+    def delete_30_days_pnl(self):
+        """Delete PNL records older than 30 days."""
+        cutoff_date = datetime.now(pytz.utc) - timedelta(days=30)
+        all_pnls = self._r.hgetall("historical_pnl")
+
+        for pnl_key, pnl_data in all_pnls.items():
+            pnl_record = json.loads(pnl_data)
+            operation_datetime = datetime.fromisoformat(pnl_record['operation_datetime'])
+            if operation_datetime < cutoff_date:
+                self._r.hdel("historical_pnl", pnl_key)
+
+
         
 if __name__ == "__main__":
     redis_service = RedisService()
@@ -103,4 +150,8 @@ if __name__ == "__main__":
     # Save the task to Redis
     # redis_service.save_task(task_id, task_data)
     # print(redis_service.read_all_crypto_lead())
-    print(redis_service.delete_all_crypto_leads())
+    # print(redis_service.delete_all_crypto_leads())
+
+
+    # FOUNDING RATE 
+    redis_service.swap_new_founding_rate("")

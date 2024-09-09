@@ -5,13 +5,17 @@ network_name="my_network"
 redis_port=6378
 
 # Stop and remove the application container
-docker container stop scheduler_v1
-docker container rm scheduler_v1
+docker container stop testing_scheduler
+docker container rm testing_scheduler
 
-# Remove the old application image
+# Remove the old image
 docker image rm scheduler
 
-echo "Build and Run container? (y/n)"
+# Prompt the user to input the module or path to test
+echo "Type the module or script path you want to test in the format '-m module_name' or 'script_path':"
+read path
+
+echo "Build and Run container for testing? (y/n)"
 read response
 
 if [ "$response" == "y" ]; then
@@ -37,28 +41,22 @@ if [ "$response" == "y" ]; then
         fi
     fi
 
-    # Build the application container
+    # Build the testing container
     docker build -t scheduler .
 
-    # Run the application container on the custom network and expose port 80
-    docker run -d -p 80:80 --name scheduler_v1 --network $network_name scheduler
+    # Run the testing container on the custom network
+    docker run -d --name testing_scheduler --network $network_name scheduler
 
-    # Get relevant data
-    ip=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' scheduler_v1)
-    host_port=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "80/tcp") 0).HostPort}}' scheduler_v1)
-    host=$(curl -s ifconfig.me)
+    # Execute the test inside the running container
+    echo "Running the test command inside the container..."
+    docker exec testing_scheduler python3 /app/$path
 
-    echo "----------------------------------------------------"
-    echo "Container Name: scheduler_v1"
-    echo "Container running on http://${host}:${host_port}" 
-
-    # Ask user if he wants to see the logs
-    echo "Wanna see the logs?(y/n)"y
-    read see_lgs
-    if [ "$see_lgs" == "y" ]; then
-        docker logs --follow scheduler_v1
+    # Ask the user if they want to see the logs
+    echo "Wanna see the logs? (y/n)"
+    read see_logs
+    if [ "$see_logs" == "y" ]; then
+        docker logs --follow testing_scheduler
     fi
-
 else
-    echo "Deployment aborted."
+    echo "Testing aborted."
 fi

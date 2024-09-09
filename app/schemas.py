@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, field_validator
-from typing import Dict, Any, Optional, List, Union, Literal
+from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import Dict, Any, Optional, List, Union, Literal, Self
 from datetime import datetime
 import uuid
 
@@ -53,4 +53,6 @@ class Return_SON(BaseModel):
 # DELETE THIS
 class OpenOrderTest(BaseModel):
     symbol: str
-    schedule_in: int
+    mode: Literal['long', 'short']
+    open_order_in: int
+    close_order_in: int
