@@ -53,7 +53,7 @@ if [ "$response" == "y" ]; then
     echo "Container running on http://${host}:${host_port}" 
 
     # Ask user if he wants to see the logs
-    echo "Wanna see the logs?(y/n)"y
+    echo "Wanna see the logs?(y/n)"
     read see_lgs
     if [ "$see_lgs" == "y" ]; then
         docker logs --follow scheduler_v1

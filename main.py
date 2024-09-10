@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from datetime import datetime, timedelta
 from pytz import timezone
-import uuid, asyncio, schedule, os
+import uuid, asyncio, schedule, os, time, threading, pytz
 
 from app import redis_service, schemas, tasksheduker
 from app.founding_rate_service.main_sercice_layer import FoundinRateService
@@ -15,7 +15,8 @@ from app.founding_rate_service.bitget_layer import BitgetClient
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.create_task(run_scheduler())
+    loop = asyncio.get_event_loop()
+    threading.Thread(target=run_scheduler, args=(loop,), daemon=True).start()  
     yield
 
 app = FastAPI(
@@ -68,6 +69,7 @@ app.add_middleware(
 task_scheduler = tasksheduker.TaskScheduler()
 redis_service_ = redis_service.RedisService()
 founding_rate_service = FoundinRateService()
+schedule_service = ScheduleLayer("Europe/Amsterdam"); bitget_client = BitgetClient()
 background_task = None 
 
 
@@ -78,10 +80,11 @@ async def root():
     content = open("frontend/index.html")
     return HTMLResponse(content.read())
 
-async def run_scheduler():
+def run_scheduler(loop):
+    asyncio.set_event_loop(loop)
     while True:
         schedule.run_pending()
-        await asyncio.sleep(1)
+        time.sleep(1)
 
 
 
@@ -516,18 +519,34 @@ async def see_founding_rate_service():
     return {"status": founding_rate_service.status}
 
 
+
+
+
 @app.post("/founding_rate_service/start", description="", tags=['Founding Rate Service'])
-async def start_founding_rate_service(background_tasks: BackgroundTasks):
+async def start_founding_rate_service():
     """Start the Founding Rate Service."""
     global background_task
+
+    # Check if a task is already running
     if background_task and not background_task.done():
         raise HTTPException(status_code=400, detail="Service is already running")
 
-    
+    # Program the `innit_procces` for the next process time
+    next_execution_time = founding_rate_service.get_next_execution_time() - timedelta(minutes=5)
+    print(f"Scheduled 'innit_procces' at {next_execution_time.strftime('%H:%M')} in timezone {founding_rate_service.timezone}")
+    founding_rate_service.next_execution_time = next_execution_time
 
-    # Start the service using the correct method
-    background_task = background_tasks.add_task(founding_rate_service.start_service)  
+    # Calculate delay in seconds until the target datetime
+    delay = (next_execution_time - datetime.now(pytz.timezone(founding_rate_service.timezone))).total_seconds()
+
+    # Schedule the asynchronous function to run once
+    loop = asyncio.get_event_loop()
+    loop.call_later(delay, lambda: asyncio.run_coroutine_threadsafe(founding_rate_service.innit_procces(), loop))
+
+    founding_rate_service.status = 'running'
+
     return {"status": "Service started"}
+
 
 
 @app.delete("/founding_rate_service/stop", description="", tags=['Founding Rate Service'])
@@ -542,7 +561,6 @@ async def stop_founding_rate_service():
     else:
         raise HTTPException(status_code=400, detail="Service is not running")
 
-schedule_service = ScheduleLayer("Europe/Amsterdam"); bitget_client = BitgetClient()
 def next_execution_time_test(minutes = 5) -> datetime:
     today = datetime.now(timezone('Europe/Amsterdam'))
     next_time = today + timedelta(minutes=minutes)
@@ -573,7 +591,15 @@ async def test_schedule_function(request_body: schemas.OpenOrderTest):
 
     return {"message": f"Functions scheduled successfully, the first execution time will be at {open_order_time.strftime("%H:%M")}"}
 
+@app.get("/test_schedule", tags=['Testing'])
+async def test_dirty_schedule(background_tasks: BackgroundTasks):
 
+    background_tasks.add_task(founding_rate_service.test_schedule)
+    return {"message": "in theory the function has been scheduled, look at the terminal :O"}
+
+@app.get("/get_next_execution_time", tags=['Testing'])
+async def next_execution_time():
+    return {"next_execution_time": founding_rate_service.next_execution_time}
 
 if __name__ == "__main__":
     import uvicorn
