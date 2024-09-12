@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres_db
+    environment:
+      POSTGRES_DB: schedule_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mierda69
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - my_network
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:latest
+    container_name: redis_tasks
+    volumes:
+      - data_volume:/data
+    networks:
+      - my_network
+    ports:
+      - "6378:6379"
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scheduler_v1
+    depends_on:
+      - redis
+    networks:
+      - my_network
+    ports:
+      - "80:80"
+
+
+
+volumes:
+  data_volume:
+
+networks:
+  my_network:
+    driver: bridge

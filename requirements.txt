@@ -11,3 +11,5 @@ python-dotenv
 httpx
 redis
 apscheduler
+sqlalchemy
+alembic

@@ -9,7 +9,7 @@ import uuid, asyncio, schedule, os, time, threading, pytz
 
 from app import redis_service, schemas, tasksheduker
 from app.founding_rate_service.main_sercice_layer import FoundinRateService
-from app.founding_rate_service.schedule_layer import ScheduleLayer
+# from app.founding_rate_service.schedule_layer import ScheduleLayer
 from app.founding_rate_service.bitget_layer import BitgetClient
 
 
@@ -69,7 +69,7 @@ app.add_middleware(
 task_scheduler = tasksheduker.TaskScheduler()
 redis_service_ = redis_service.RedisService()
 founding_rate_service = FoundinRateService()
-schedule_service = ScheduleLayer("Europe/Amsterdam"); bitget_client = BitgetClient()
+# schedule_service = ScheduleLayer("Europe/Amsterdam"); bitget_client = BitgetClient()
 background_task = None 
 
 
@@ -539,13 +539,20 @@ async def start_founding_rate_service():
     # Calculate delay in seconds until the target datetime
     delay = (next_execution_time - datetime.now(pytz.timezone(founding_rate_service.timezone))).total_seconds()
 
+    print("the total delay is >", delay)
     # Schedule the asynchronous function to run once
     loop = asyncio.get_event_loop()
-    loop.call_later(delay, lambda: asyncio.run_coroutine_threadsafe(founding_rate_service.innit_procces(), loop))
+
+    async def schedule_task():
+        await asyncio.sleep(delay)
+        await founding_rate_service.innit_procces()
+
+    background_task = asyncio.create_task(schedule_task())  # Create a background task that waits and then runs the function
 
     founding_rate_service.status = 'running'
 
     return {"status": "Service started"}
+
 
 
 
@@ -569,32 +576,18 @@ def next_execution_time_test(minutes = 5) -> datetime:
 
 @app.post("/testings/schedule_function", tags=['Testing'])
 async def test_schedule_function(request_body: schemas.OpenOrderTest):
-    # Calculate execution times for open and close order
-    open_order_time = next_execution_time_test(request_body.open_order_in)
-    close_order_time = next_execution_time_test(request_body.close_order_in)
+   
 
-    # First Execution (Open Order)
-    schedule_service.schedule_process_time(
-        open_order_time,                  
-        bitget_client.open_order,         
-        request_body.symbol,              
-        '10',                             
-        request_body.mode                           
-    )
-
-    # Second Execution (Close Order)
-    schedule_service.schedule_process_time(
-        close_order_time,                 
-        bitget_client.close_order,        
-        request_body.symbol               
-    )
-
-    return {"message": f"Functions scheduled successfully, the first execution time will be at {open_order_time.strftime("%H:%M")}"}
+    return {"message": "This function is not working anymore.."}
 
 @app.get("/test_schedule", tags=['Testing'])
 async def test_dirty_schedule(background_tasks: BackgroundTasks):
+    today = datetime.now(timezone('Europe/Amsterdam'))
+    nex_time = today + timedelta(minutes=2)
 
-    background_tasks.add_task(founding_rate_service.test_schedule)
+    loop = asyncio.get_event_loop()
+    loop.call_later(nex_time)
+
     return {"message": "in theory the function has been scheduled, look at the terminal :O"}
 
 @app.get("/get_next_execution_time", tags=['Testing'])

@@ -32,7 +32,7 @@ class FundingRateChart:
         Fetch candlestick and funding rate data asynchronously.
         """
         # Fetch candlestick data and funding rate data concurrently
-        candlestick_task = self.candle_data.get_candlestick_chart(self.symbol, granularity=self.g6+++ranularity, limit=self.limit)
+        candlestick_task = self.candle_data.get_candlestick_chart(self.symbol, granularity=self.granularity, limit=self.limit)
         funding_rate_task = self.candle_data.get_historical_funding_rate(self.symbol)
         
         # Gather results from both tasks
@@ -109,7 +109,7 @@ class FundingRateChart:
         if not period_data.empty:
             # Calculate the volatility as the percentage change in the 'Close' prices
             price_start = period_data['Open'].iloc[0]
-            price_end = period_data['Close'].iloc[-1]
+            price_end = period_data['Low'].min()
             # volatility = ((price_end - price_start) / price_start) * 100
 
             if price_start > price_end:
@@ -134,7 +134,7 @@ class FundingRateChart:
             print("No data available to calculate the last volatility.")
 
 
-    def analyze_incrementation(self) -> dict:
+    async def analyze_incrementation(self) -> dict:
         """
         Analyse the incrementation over the last 8 hours and make sure that 1 hour ago the ATH hasn't been superated by 5%,
         if the ATH in this range of time has been superated for over 15% mark this as enter short
@@ -181,15 +181,15 @@ class FundingRateChart:
                     print("Continue, likely will be in other exceptions")
                 else:
                     # Open long but a little bit risky
-                    return {"result": True, "side": "long", "risky": True, "chart": "not avariable"}
+                    return {"result": True, "side": "long", "risky": True, "chart": "not avariable", "type": "normal"}
             else:
                 # Open long
-                return {"result": True, "side": "long", "risky": False, "chart": "not avariable"}
+                return {"result": True, "side": "long", "risky": False, "chart": "not avariable", "type": "normal"}
         
         # Calculate short positions
         if volatility_from_highest <= -15:
             # Enter short
-            return {"result": True, "side": "short", "risky": False, "chart": "1.1"} 
+            return {"result": True, "side": "short", "risky": False, "chart": "1.1", "type": "after"} 
 
         df_1h_ago = self.df.tail(60); df_1h_ago_highest_value = df_1h_ago['High'].max()
         if highest_value == df_1h_ago_highest_value: 
@@ -197,10 +197,40 @@ class FundingRateChart:
             # Calculate volatility from max value to last value     
             hour_volatility = ((end_price - df_1h_ago_highest_value) / df_1h_ago_highest_value) * 100
             if hour_volatility < 1.3:
-                return {"result": True, "side": "long", "risky": False, "chart": "1.2"} 
+                return {"result": True, "side": "long", "risky": False, "chart": "1.2", "type": "normal"} 
             
             if hour_volatility > 7.0:
-                return {"result": True, "side": "short", "risky": True, "chart": "1.4"}
+                return {"result": True, "side": "short", "risky": True, "chart": "1.4", "type": "after"}
+
+        # View incrementation of last 2 days (42h)
+        self.granularity = "15min"; self.limit = 4 * 42
+        await self.fetch_data()
+
+        start_price_2d = self.df['Open'].iloc[0]
+        higest_price_2d_lst_hr = self.df['High'].tail(60).max()
+
+        if start_price_2d > higest_price_2d_lst_hr:
+            volatility = ((higest_price_2d_lst_hr - start_price_2d) / start_price_2d) * 100
+        else:
+            volatility = (start_price_2d / higest_price_2d_lst_hr) * 100
+
+        print("loco volatility -> ", volatility)
+        if volatility > 15:
+            # Analyze setback
+            last_price = self.df['Close'].iloc[-1]
+            two_hour_higest_price = self.df['High'].tail(4 * 2).max()
+
+            setback = ((last_price - two_hour_higest_price) / two_hour_higest_price) * 100
+            print("setback -> ",setback)
+
+            if setback < -5: # Chacke min setback if you see it to low
+                return {"result": True, "side": "short", "risky": True, "chart": "1.6", "type": "after-variation"}
+            else:
+                return {"result": True, "side": "long", "risky": True, "chart": "1.5", "type": "after"}
+
+        elif volatility < -15:
+            return {"result": True, "side": "long", "risky": True, "chart": "1.7", "type": "normal"}
+
 
         # No clear signal
         return {"result": False, "side": None}
@@ -211,17 +241,15 @@ class FundingRateChart:
         2 past prices were going down, the risky is False and should Enter into the operation 
         """
 
-        minimum_to_pass = 1.5
-
         last, _ = self.analyze_last_volatility(period=1)
         pre_last, _ = self.analyze_last_volatility(period=2)
 
-        if last > minimum_to_pass:
-            if pre_last > minimum_to_pass:
-                return {"result": True, "side": "short", "risky": False, "chart": "2.1"} # Low risk variation
+        if last < -1.5:
+            if last >= pre_last or pre_last < -1.5:
+                return {"result": True, "side": "long", "risky": False, "chart": "2.1", "type": "after"} # Low risk variation
 
             else:
-                return {"result": True, "side": "short", "risky": True, "chart": "2.1"} # Hight rick variation
+                return {"result": True, "side": "long", "risky": True, "chart": "2.1", "type": "after"} # Hight rick variation
 
         return {"result": False, "side": None}
 
@@ -232,17 +260,17 @@ async def main_testings():
     periods = 2
     limit = (60 * 8) * periods 
 
-    chart = FundingRateChart("SLFUSDT", granularity='1min', limit=limit)# Limit is equal to 3 periods 
+    chart = FundingRateChart("UXLINKUSDT", granularity='1min', limit=limit)# Limit is equal to 3 periods 
 
     await chart.fetch_data() # Important call this method after calling the previous one
     await chart.fetch_funing_rate_expiration_time() # Call this method if expiration time with other times is involved
 
-
+    
 
     # Analyse incrementation 
-    analyse_incrementation = chart.determine_by_past_founing_rates()
+    past_founing_rate = chart.determine_by_past_founing_rates()
 
-    print(analyse_incrementation)
+    print("last incrementation -> ", past_founing_rate)
 
 
 if __name__ == "__main__":

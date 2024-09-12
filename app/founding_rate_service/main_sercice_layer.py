@@ -7,6 +7,7 @@ import threading
 from app.founding_rate_service.bitget_layer import BitgetClient
 # from app.founding_rate_service.schedule_layer import ScheduleLayer
 from app.redis_service import RedisService
+from app.founding_rate_service.chart_analysis import FundingRateChart
 from config import ( 
     MIN_FOUNDING_RATE, 
     MAX_FOUNDING_RATE,
@@ -15,6 +16,7 @@ from config import (
 
 bitget_client = BitgetClient()
 redis_service = RedisService()
+
 
 
 class FoundinRateService():
@@ -65,48 +67,74 @@ class FoundinRateService():
 
 
     async def innit_procces(self):
-        """Main process to trigger the rest of the components of this program."""
-        # GET CRYPTOS WITH HIGH INTEREST RATE
-        print("Innitating the innit proces! This function should be executed 5 minutes before the founing rate")
+        print("Initiating the process! This function should be executed 5 minutes before the founding rate")
         future_cryptos = await bitget_client.get_future_cryptos()
         sorted_future_cryptos = bitget_client.fetch_future_cryptos(future_cryptos)
 
-        # Cryptos to consider for opening a long position
         negative_founding_rate = [{"symbol": d["symbol"], "mode": "long", "fundingRate": float(d["fundingRate"])} 
-                                for d in sorted_future_cryptos if float(d["fundingRate"]) <= float(MIN_FOUNDING_RATE)]
+                                  for d in sorted_future_cryptos if float(d["fundingRate"]) <= float(MIN_FOUNDING_RATE)]
         for crypto in negative_founding_rate:
             redis_service.add_new_crypto_lead(crypto["symbol"], crypto["fundingRate"])
 
-        # Cryptos to consider for opening a short position
         positive_founding_rate = [{"symbol": d["symbol"], "mode": "short", "fundingRate": float(d["fundingRate"])} 
-                                for d in sorted_future_cryptos if float(d["fundingRate"]) >= float(MAX_FOUNDING_RATE)]
+                                  for d in sorted_future_cryptos if float(d["fundingRate"]) >= float(MAX_FOUNDING_RATE)]
         for crypto in positive_founding_rate:
             redis_service.add_new_crypto_lead(crypto["symbol"], crypto["fundingRate"])
 
-        # Determine if the process should continue based on available cryptos
         end_process = bool(negative_founding_rate or positive_founding_rate)
         if end_process:
-            # DETERMINE SHORT - LONG | HERE IS WHERE THE CONDITION ARE
+            print("There were cryptos to trade!!! Reprogramming in 5 min!")
             for crypto in negative_founding_rate:
                 if crypto['fundingRate'] < 1.3:
-                    # OPEN LONG, at this moment if founing rate is less than 1.3 always open long
                     asyncio.create_task(self.schedule_open_long(crypto))
 
-                
+                if crypto['fundingRate'] >= 3.0:
+                    chart = FundingRateChart(crypto['symbol'], granularity='1min', limit=limit)
+                    last_founing_rates = chart.determine_by_past_founing_rates()
+                    if last_founing_rates['result'] == 'long':
+                        asyncio.create_task(self.schedule_open_long(crypto, last_founing_rates['type']))
+
+                    elif last_founing_rates['result'] == 'short':
+                        asyncio.create_task(self.schedule_open_short(crypto, last_founing_rates['type']))
+
+                    else:
+                        asyncio.create_task(self.schedule_open_short(crypto, 'after'))
+
+                if crypto['fundingRate'] < 3.0:
+                    limit = (60 * 8) * 2 # 2 periods at this moment
+                    chart = FundingRateChart(crypto['symbol'], granularity='1min', limit=limit)     
+                    await chart.fetch_data()
+                    await chart.fetch_funing_rate_expiration_time()
+
+                    # Open trades that involves analysis to the chart
+                    # Analyse incrementation 
+                    persentage, _ = chart.analyze_last_volatility()
+                    if persentage >= 1.5: # If the last volatility was higer than 1.5, open short as 'after'
+                        asyncio.create_task(self.schedule_open_short(crypto, 'after'))
+                    else:
+                        incrementation_analysis = await chart.analyze_incrementation()
+
+                        if incrementation_analysis['result']:
+                            if incrementation_analysis['side'] == 'short':
+                                asyncio.create_task(self.schedule_open_short(crypto, incrementation_analysis['type'])) 
+
+                            elif incrementation_analysis['side'] == 'long':
+                                asyncio.create_task(self.schedule_open_long(crypto, incrementation_analysis['type']))
+
+
         else:
             print("There wasn't cryptos to trade! Reprogramming for the next wave")
-            if self.status == 'running':
-                next_execution_time = self.get_next_execution_time(True) - timedelta(minutes=5)
-                print(f"Scheduled 'innit_procces' at {next_execution_time.strftime('%H:%M')} in timezone {self.timezone}")
 
-                # Calculate delay in seconds until the target datetime
-                delay = (next_execution_time - datetime.now(pytz.timezone(self.timezone))).total_seconds()
+        print("Programming next wave even though there are already cryptos..")
+        if self.status == 'running':
+            next_execution_time = self.get_next_execution_time(True) - timedelta(minutes=5)
+            print(f"Scheduled 'innit_procces' at {next_execution_time.strftime('%H:%M')} in timezone {self.timezone}")
 
-                # Re-schedule the asynchronous function to run once
-                loop = asyncio.get_event_loop()
-                loop.call_later(delay, lambda: asyncio.run_coroutine_threadsafe(self.innit_procces(), loop))
-                
-                self.next_execution_time = next_execution_time  
+            delay = (next_execution_time - datetime.now(pytz.timezone(self.timezone))).total_seconds()
+            loop = asyncio.get_event_loop()
+            loop.call_later(delay, lambda: asyncio.run_coroutine_threadsafe(self.innit_procces(), loop))
+            
+            self.next_execution_time = next_execution_time  
 
 
 
@@ -122,58 +150,65 @@ class FoundinRateService():
         )
 
     async def close_order(self, symbol):
-        print("The order are being closed.")
+        print("The orders are being closed.")
         await bitget_client.close_order(symbol)
 
-        # Schedule `save_operation` 30 seconds after the order is closed
         save_operation_time = datetime.now(pytz.timezone(self.timezone)) + timedelta(seconds=30)
-        
         delay = (save_operation_time - datetime.now(pytz.timezone(self.timezone))).total_seconds()
 
         loop = asyncio.get_event_loop()
         loop.call_later(delay, lambda: asyncio.run_coroutine_threadsafe(self.save_operation(symbol), loop))
 
-        
 
         
-    async def schedule_open_long(self, symbol, type) -> None:
-        print(f"Scheduling a long in {symbol}")
+    async def schedule_open_long(self, symbol, type=None) -> None:
+        print(f"Scheduling a long for {symbol}")
         stmx = self.get_next_execution_time()
 
-        # Schedule task to open the order (1 min before the execution)
-        next_execution_time = stmx - timedelta(minutes=1)
-        print("Next execution time to open the order->", next_execution_time)
-        self.scheduler.schedule_process_time(next_execution_time, self.open_order, args=[symbol, 'long'])
+        open_long_time = stmx - timedelta(minutes=1)
+        print("Next execution time to open the order as long ->", open_long_time)
+        delay = (open_long_time - datetime.now(pytz.timezone(self.timezone))).total_seconds()
 
+        loop = asyncio.get_event_loop()
+        loop.call_later(delay, lambda: asyncio.run_coroutine_threadsafe(self.open_order(symbol, 'long'), loop))
 
-
-        # Schedule task, close order 
         next_execution_time = stmx + timedelta(seconds=15)
-        print(f"Close Order: {next_execution_time.strftime("%H:%M")}")
-        self.scheduler.schedule_process_time(next_execution_time, self.close_order, args=[symbol])
+        delay = (next_execution_time - datetime.now(pytz.timezone(self.timezone))).total_seconds()
+        print(f"Close Order: {next_execution_time.strftime('%H:%M')}")
+        loop.call_later(delay, lambda: asyncio.run_coroutine_threadsafe(self.close_order(symbol), loop))
+
         self.next_execution_time = next_execution_time
 
     async def schedule_open_short(self, symbol, type: Literal['normal', 'after', 'after-variation'] = 'normal') -> None:
         next_execution_time = self.get_next_execution_time()
         print(f"Opening a short for {symbol}")
 
+        loop = asyncio.get_event_loop()
+
         if type == 'normal':
-            operation_open = next_execution_time + timedelta(seconds=45)
+            operation_open = next_execution_time - timedelta(seconds=45)
             operation_close = next_execution_time + timedelta(seconds=15)
-            self.scheduler.schedule_process_time(operation_open, self.open_order, args=[symbol, 'long'])
-            self.scheduler.schedule_process_time(operation_close, self.close_order, args=[symbol]); self.next_execution_time = operation_close
-
+            
         elif type == 'after':
-            operation_open = next_execution_time
+            operation_open = next_execution_time - timedelta(seconds=15)
             operation_close = next_execution_time + timedelta(seconds=60)
-            self.scheduler.schedule_process_time(operation_open, self.open_order, args=[symbol, 'long'])
-            self.scheduler.schedule_process_time(operation_close, self.close_order, args=[symbol]); self.next_execution_time = operation_close
-
+            
         elif type == 'after-variation':
-            operation_open = next_execution_time + timedelta(seconds=15)
+            operation_open = next_execution_time - timedelta(seconds=15)
             operation_close = next_execution_time + timedelta(minutes=10)
-            self.scheduler.schedule_process_time(operation_open, self.open_order, args=[symbol, 'long'])
-            self.scheduler.schedule_process_time(operation_close, self.close_order, args=[symbol]); self.next_execution_time = operation_close
+        
+        # Calculate delay for opening the order
+        delay_open = (operation_open - datetime.now(pytz.timezone(self.timezone))).total_seconds()
+        # Schedule the opening of the order
+        loop.call_later(delay_open, lambda: asyncio.run_coroutine_threadsafe(self.open_order(symbol, 'short'), loop))
+
+        # Calculate delay for closing the order
+        delay_close = (operation_close - datetime.now(pytz.timezone(self.timezone))).total_seconds()
+        # Schedule the closing of the order
+        loop.call_later(delay_close, lambda: asyncio.run_coroutine_threadsafe(self.close_order(symbol), loop))
+
+        self.next_execution_time = operation_close
+
 
 
     async def save_operation(self, symbol):
@@ -190,8 +225,6 @@ class FoundinRateService():
         
         # Start the scheduler in the background
         asyncio.create_task(self.scheduler.start_background())
-
-
 
 
     def stop_service(self):
