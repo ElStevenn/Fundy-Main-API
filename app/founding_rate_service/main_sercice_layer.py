@@ -161,23 +161,34 @@ class FoundinRateService():
 
 
         
-    async def schedule_open_long(self, symbol, type=None) -> None:
+    async def schedule_open_long(self, symbol, type: Literal['normal', 'after'] = 'normal') -> None:
         print(f"Scheduling a long for {symbol}")
         stmx = self.get_next_execution_time()
 
-        open_long_time = stmx - timedelta(minutes=1)
+        if type == 'normal':
+            open_long_time = stmx - timedelta(minutes=1)
+            delay_open = (open_long_time - datetime.now(pytz.timezone(self.timezone))).total_seconds()
+
+            next_execution_time = stmx + timedelta(seconds=15)
+            delay_close = (next_execution_time - datetime.now(pytz.timezone(self.timezone))).total_seconds()
+        
+        elif type == 'after':
+            open_long_time = datetime.now(pytz.timezone(self.timezone)) + timedelta(seconds=15)  
+            delay_open = (open_long_time - datetime.now(pytz.timezone(self.timezone))).total_seconds()
+
+            next_execution_time = open_long_time + timedelta(minutes=1)
+            delay_close = (next_execution_time - datetime.now(pytz.timezone(self.timezone))).total_seconds()
+
         print("Next execution time to open the order as long ->", open_long_time)
-        delay = (open_long_time - datetime.now(pytz.timezone(self.timezone))).total_seconds()
-
         loop = asyncio.get_event_loop()
-        loop.call_later(delay, lambda: asyncio.run_coroutine_threadsafe(self.open_order(symbol, 'long'), loop))
+        loop.call_later(delay_open, lambda: asyncio.run_coroutine_threadsafe(self.open_order(symbol, 'long'), loop))
 
-        next_execution_time = stmx + timedelta(seconds=15)
-        delay = (next_execution_time - datetime.now(pytz.timezone(self.timezone))).total_seconds()
         print(f"Close Order: {next_execution_time.strftime('%H:%M')}")
-        loop.call_later(delay, lambda: asyncio.run_coroutine_threadsafe(self.close_order(symbol), loop))
-
+        loop.call_later(delay_close, lambda: asyncio.run_coroutine_threadsafe(self.close_order(symbol), loop))
         self.next_execution_time = next_execution_time
+
+
+
 
     async def schedule_open_short(self, symbol, type: Literal['normal', 'after', 'after-variation'] = 'normal') -> None:
         next_execution_time = self.get_next_execution_time()
