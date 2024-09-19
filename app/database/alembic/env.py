@@ -15,10 +15,10 @@ from app.database.models import Base  # Import your Base here
 config = context.config
 
 
-DB_NAME = "schedule_db"
+DB_NAME = "main_db"
 DB_USER = "postgres"
 DB_PASS = "mierda69"
-DB_HOST = "18.101.108.204"
+DB_HOST = "182.18.0.10"
 
 database_url_sync = f'postgresql+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}:5432/{DB_NAME}'
 config.set_main_option('sqlalchemy.url', database_url_sync)

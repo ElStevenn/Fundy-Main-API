@@ -1,10 +1,9 @@
-from sqlalchemy import String, Float, DateTime, Text, ForeignKey, JSON, INT, Column, func
+from sqlalchemy import String, Float, DateTime, Text, ForeignKey, JSON, INT, Column, func, Integer, Numeric
 from sqlalchemy.dialects.postgresql import UUID as pgUUID
-from sqlalchemy.orm import relationship, DeclarativeBase
+from sqlalchemy.orm import relationship, declarative_base
 import uuid
 
-class Base(DeclarativeBase):
-    pass
+Base = declarative_base()
 
 class Users(Base):
     __tablename__ = "users"
@@ -88,6 +87,34 @@ class Historical_PNL(Base):
 
     # Many-to-one relationship with Account
     account = relationship("Account", back_populates="historical_pnls")
+
+
+# CRYPTO MODELS
+class FutureCryptos(Base):
+    __tablename__ = "future_cryptos"
+
+    id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    symbol = Column(String(255), nullable=False)
+    funding_rate_coundown_every = Column(Integer, default=8) # 8 or 4
+
+    crypto_historical_pnl = relationship("CryptoHistoricalPNL", back_populates="crypto", cascade="all, delete-orphan")
+
+
+class CryptoHistoricalPNL(Base):
+    __tablename__ = "crypto_historical_pnl"
+
+    id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    crypto_id = Column(pgUUID(as_uuid=True), ForeignKey('future_cryptos.id'), nullable=False)
+    avg_entry_price = Column(Numeric, nullable=False)
+    avg_close_price = Column(Numeric, nullable=False)
+    percentage_earning = Column(String(255))
+
+
+    crypto = relationship("FutureCryptos", back_populates="crypto_historical_pnl")
+
+
+
+
 
 
 # MIGRATE MODEL
