@@ -1,9 +1,12 @@
 from config import BITGET_APIKEY, BITGET_PASSPHRASE, BITGET_SECRET_KEY, LEVERAGE
+from fastapi.encoders import jsonable_encoder
 from fastapi import HTTPException
 from typing import Optional, Literal
-from datetime import datetime
+from datetime import datetime, timedelta
+from datetime import timezone as dttimezone
 from zoneinfo import ZoneInfo
 import pandas as pd
+from pytz import timezone
 import asyncio
 import aiohttp
 import hmac
@@ -201,6 +204,53 @@ class BitgetClient:
             print(f"An error occurred: {e}")
             return np.array([])
 
+    async def get_1min_candlestick_chart(self, symbol: str, startTime: int, endTime: int) -> np.ndarray:
+        url = "https://api.bitget.com/api/v2/spot/market/candles"
+        granularity = '1min'
+
+        # Ensure startTime and endTime are in milliseconds and passed as strings
+        params = {
+            "symbol": symbol, 
+            "granularity": granularity, 
+            "startTime": str(startTime), 
+            "endTime": str(endTime)  
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    data = result.get("data", [])
+
+                    if not data:
+                        print("No data returned from the API.")
+                        return np.array([])
+
+                    # Convert the data to a NumPy array with timezone conversion
+                    utc = pytz.utc
+                    amsterdam_tz = pytz.timezone('Europe/Amsterdam')
+
+                    np_data = np.array([
+                        [
+                            datetime.fromtimestamp(int(item[0]) / 1000, tz=utc).astimezone(amsterdam_tz).timestamp(),  # Convert to Amsterdam timezone
+                            float(item[1]),  # open price
+                            float(item[2]),  # high price
+                            float(item[3]),  # low price
+                            float(item[4]),  # close price
+                            float(item[5])   # volume in base currency
+                        ]
+                        for item in data if isinstance(item, list) and len(item) >= 6  # Ensure valid format
+                    ])
+                    return np_data
+                else:
+                    print(f"Error fetching candlestick data: {response.status}")
+                    print(f"Api response: {await response.text()}")
+                    return np.array([])
+
+
+    
+
+
 
     async def get_historical_funding_rate(self, symbol: str):
         url = "https://api.bitget.com/api/v2/mix/market/history-fund-rate"
@@ -212,7 +262,29 @@ class BitgetClient:
                     if response.status == 200:
                         result = await response.json()
                         data = result.get("data", [])
-                        return data
+
+                        # Define a unique dtype for the structured array
+                        dtype = [
+                            ('fundingRateTimes100', 'float32'),  
+                            ('fundingTimeEurope', 'U25'),
+                            ('fundingTimeDefault', 'float32')  
+                        ]
+                        
+                        # Convert the fetched data to a NumPy structured array
+                        np_data = np.array([
+                            (
+                                float(fr["fundingRate"]) * 100,  # Funding rate times 100
+                                datetime.utcfromtimestamp(int(fr["fundingTime"]) / 1000)  # Funding time as ISO string format
+                                .replace(tzinfo=timezone('UTC'))
+                                .astimezone(timezone('Europe/Amsterdam'))
+                                .isoformat(),
+                                float(fr["fundingTime"]),  # Funding time in default format
+                            )
+                            for fr in data
+                        ], dtype=dtype)
+                        
+                        # Convert NumPy array to list of Python native types for serialization
+                        return jsonable_encoder(np_data.tolist())
                     else:
                         print(f"Error fetching funding rate data: {response.status}")
                         return []
@@ -221,12 +293,29 @@ class BitgetClient:
             return []
 
 
-async def main_testing():
-    # Open order test 
-    bitget_client = BitgetClient()
-    api_response = await bitget_client.get_historical_funding_rate("SLFUSDT")
 
-    print(api_response)
+async def main_testing():
+    # Initialize BitgetClient
+    bitget_client = BitgetClient()
+
+    # Define your variables
+    symbol = 'BTCUSDT'  # Example symbol
+    period_unix_timetamp = 1725785100  # Example Unix timestamp in seconds
+    short_period = 10  # Example short period in minutes
+
+    # Convert to Unix timestamp in milliseconds
+    dt = datetime.fromtimestamp(period_unix_timetamp, tz=dttimezone.utc)
+    start_time10 = int((dt - timedelta(minutes=1)).timestamp() * 1000); print("start time -> ", start_time10)
+    end_timeX = int((dt + timedelta(minutes=short_period)).timestamp() * 1000); print("End time -> ", end_timeX)
+
+    # Call the get_1min_candlestick_chart function with the calculated timestamps
+    cdle_X_min = await bitget_client.get_1min_candlestick_chart(symbol=symbol, startTime=start_time10, endTime=end_timeX)
+
+    # Print the result
+    print(cdle_X_min)
+
+
+
 
 if __name__ == "__main__":
     asyncio.run(main_testing())

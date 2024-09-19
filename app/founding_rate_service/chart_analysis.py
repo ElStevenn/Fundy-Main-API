@@ -1,7 +1,7 @@
 import asyncio
 import pandas as pd
 import numpy as np
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Tuple
 
 from app.founding_rate_service.bitget_layer import BitgetClient
@@ -38,41 +38,50 @@ class FundingRateChart:
         # Gather results from both tasks
         result, funding_rates = await asyncio.gather(candlestick_task, funding_rate_task)
 
+        # Process candlestick data
         if result.size > 0:
-            # Create DataFrame from candlestick data
             df = pd.DataFrame(result, columns=['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
             df['Timestamp'] = pd.to_datetime(df['Timestamp'].astype(float), unit='s', utc=True)
             df.set_index('Timestamp', inplace=True)
             df.dropna(inplace=True)  # Ensure no NaN values in the DataFrame
             self.df = df  # Store for further analysis
-            return df, funding_rates
         else:
             print("No candlestick data fetched. Please check the symbol and granularity.")
-            return None, None
+            df = None
 
-    async def fetch_funing_rate_expiration_time(self):
+        # Ensure funding rates are in a compatible format
+        if funding_rates:
+            # Convert funding rates from list of tuples to list of dictionaries for easier handling
+            funding_rates = [{'fundingRateTimes100': rate[0], 'fundingTimeEurope': rate[1]} for rate in funding_rates]
+        else:
+            print("No funding rate data fetched.")
+            funding_rates = None
+
+        return df, funding_rates
+
+
+    async def fetch_funding_rate_expiration_time(self):
         """
         Fetch the latest funding rate expiration time.
         """
         _, funding_rates = await self.fetch_data()
 
-        print("funing rates -> ",funding_rates)
-        
         if funding_rates:
-            # Get all the datetimes as timestamp
-            for founding_rate in funding_rates:
-                self.latests_founing_rates.append(datetime.fromtimestamp(int(founding_rate['fundingTime']) / 1000, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S%z'))
+            for funding_rate in funding_rates:
+                funding_time_str = funding_rate['fundingTimeEurope']  
+                funding_time_utc = datetime.fromisoformat(funding_time_str).astimezone(timezone.utc)
+                self.latests_founing_rates.append(funding_time_utc.strftime('%Y-%m-%d %H:%M:%S%z'))
 
-            self.latest_funding_time = max(funding_rates, key=lambda x: x['fundingTime'])['fundingTime']
-            self.timestamp_value = datetime.fromtimestamp(int(self.latest_funding_time) / 1000, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S%z')
+
+            self.latest_funding_time = max(funding_rates, key=lambda x: datetime.fromisoformat(x['fundingTimeEurope']).timestamp())['fundingTimeEurope']
+            self.timestamp_value = datetime.fromisoformat(self.latest_funding_time).strftime('%Y-%m-%d %H:%M:%S%z')
 
             return self.latest_funding_time, self.latests_founing_rates
         else:
             print("No funding rate data fetched.")
             return None
-        
 
-            
+
     def analyze_last_volatility(self, period: int = 1) -> Tuple[float, pd.DataFrame]:
 
         """
@@ -145,14 +154,11 @@ class FundingRateChart:
 
         # Check if DataFrame is available
         if self.df is None or self.df.empty:
-            print("Candlestick data is not available.")
-            return
+            return {}
         
         # Get whole incrementation over the last 8 hours (8 * 60 minutes)
-        start_price = self.df['Open'].iloc[0]; print(self.df)
-        print("Start price -> ", start_price)
+        start_price = self.df['Open'].iloc[0]
         end_price = self.df['Close'].iloc[-1]
-        print("End price -> ", end_price)
         highest_value = self.df['High'].max()
 
 
@@ -235,7 +241,8 @@ class FundingRateChart:
         # No clear signal
         return {"result": False, "side": None}
 
-    def determine_by_past_founing_rates(self):
+
+    def determine_by_past_funding_rates(self):
         """
         structure 2.1 | If the last founing rate the prices was going down, the prediction will be True as open short however with risky True. Meanwhile the
         2 past prices were going down, the risky is False and should Enter into the operation 
@@ -253,6 +260,113 @@ class FundingRateChart:
 
         return {"result": False, "side": None}
 
+    async def analyse_period_founing_rate(self, symbol, period_dateiso: str, period_unix_timetamp: float, short_period = 10) -> dict:
+        # Debuging delete this
+        print(f"There was a founing rate {period_dateiso} in period")
+
+        # 8 Hours Variation since founding rate
+        cdle_8h = await self.candle_data.get_candlestick_chart(symbol=symbol, granularity='15min', limit=(60 * 8) * 2)
+
+        if cdle_8h.size < 0:
+            return {}
+        
+
+        # Get 8h period as 15min chart
+        df_8h = pd.DataFrame(cdle_8h, columns=['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
+        df_8h['Timestamp_iso'] = pd.to_datetime(df_8h['Timestamp'], unit='s', utc=True).dt.tz_convert('Europe/Amsterdam')
+
+        # Fetch needed period 
+        start_time = datetime.fromisoformat(period_dateiso)
+        end_time = start_time + timedelta(hours=8)
+        filtered_df = df_8h.loc[(df_8h['Timestamp_iso'] >= start_time) & (df_8h['Timestamp_iso'] <= end_time)]
+
+        # Select needed values
+        start_price = df_8h.loc[df_8h['Timestamp_iso'] == start_time, 'Open'].values[0]
+        lowest_price_range = filtered_df['Low'].min()
+        higest_price_range = filtered_df['High'].max()
+        end_price = filtered_df['Close'].iloc[-1]
+        
+        # Get 8h total  variation
+        total_vol_8h = ((end_price - start_price) / start_price) * 100
+
+        # Get Regression
+        regression_val = ((lowest_price_range - start_price) / start_price) * 100
+
+
+        # Get progresive
+        if start_price < higest_price_range:
+            progresive_var = ((higest_price_range - start_price) / start_price) * 100
+
+
+        # 10 Minutes Variation since founding rate to lowest price or higest price / depending
+        # Debugging
+        print(f"There was a founding rate {period_dateiso} in period")
+
+        # 10 Minutes Variation since founding rate to lowest price or highest price / depending
+        # The given period_unix_timetamp should already be in seconds (like 1725788700.0), so we work with it directly.
+        dt = datetime.fromtimestamp(period_unix_timetamp, tz=timezone.utc)
+
+        # Subtract 1 minute and add 10 minutes in seconds
+        start_time10 = dt - timedelta(minutes=1)
+        end_timeX = dt + timedelta(minutes=short_period)
+
+        # Convert both times to Unix timestamps in **seconds**
+        start_time10_sec = start_time10.timestamp()
+        end_timeX_sec = end_timeX.timestamp()
+
+        # Print the calculated values in seconds for debugging
+        print(f"Start time (sec): {start_time10_sec}, End time (sec): {end_timeX_sec}")
+
+        # Convert the timestamps to milliseconds before calling the API
+        start_time10_ms = int(start_time10_sec * 1000)
+        end_timeX_ms = int(end_timeX_sec * 1000)
+
+        # Print the calculated values in milliseconds for further debugging
+        print(f"Start time (ms): {start_time10_ms}, End time (ms): {end_timeX_ms}")
+
+        # Call the API with the correct values
+        cdle_X_min = await self.candle_data.get_1min_candlestick_chart(symbol=symbol, startTime=start_time10_ms, endTime=end_timeX_ms)
+
+        print(f"API Response: {cdle_X_min}")
+
+        """
+        # Get Needed     
+        df_Xmin = pd.DataFrame(cdle_X_min, columns=['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
+        df_Xmin['Timestamp_iso'] = pd.to_datetime(df_8h['Timestamp'], unit='s', utc=True).dt.tz_convert('Europe/Amsterdam')
+
+        # Fetch data of this period
+        print(df_Xmin)
+
+
+        print(f"{short_period} min result -> ", cdle_X_min)
+        """
+
+        return {
+            "8h_period_analysis": {
+                "total_vor_8h": total_vol_8h, 
+                "regression_var": regression_val,
+                "progresive_var": progresive_var
+                },
+            f"{cdle_X_min}min_period_analysis": {
+                "total_var_{cdle_X_min}m": "",
+                "regression_var" : ""
+            }
+        }
+
+    async def get_historical_analysis(self):
+        founding_rates = await self.candle_data.get_historical_funding_rate(self.symbol)
+        min_to_analysis = -0.5
+
+        result = []
+        for i, period in enumerate(reversed(founding_rates)):
+            if period[0] < min_to_analysis:
+                # Analyse period
+                historical_analysis = await self.analyse_period_founing_rate(symbol=self.symbol, period_dateiso=str(period[1]), period_unix_timetamp=float(period[0]))
+                result.append(historical_analysis)
+            
+        return result
+
+
 
 async def main_testings():
     # Example of every single analysis and determine possition
@@ -263,14 +377,14 @@ async def main_testings():
     chart = FundingRateChart("UXLINKUSDT", granularity='1min', limit=limit)# Limit is equal to 3 periods 
 
     await chart.fetch_data() # Important call this method after calling the previous one
-    await chart.fetch_funing_rate_expiration_time() # Call this method if expiration time with other times is involved
+    await chart.fetch_funding_rate_expiration_time() # Call this method if expiration time with other times is involved
 
     
 
     # Analyse incrementation 
-    past_founing_rate = chart.determine_by_past_founing_rates()
+    past_founing_rate = await chart.get_historical_analysis()
 
-    print("last incrementation -> ", past_founing_rate)
+    # print("last incrementation -> ", past_founing_rate)
 
 
 if __name__ == "__main__":

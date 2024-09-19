@@ -1,4 +1,4 @@
-from sqlalchemy import String, Float, DateTime, Text, ForeignKey, JSON, INT, Column
+from sqlalchemy import String, Float, DateTime, Text, ForeignKey, JSON, INT, Column, func
 from sqlalchemy.dialects.postgresql import UUID as pgUUID
 from sqlalchemy.orm import relationship, DeclarativeBase
 import uuid
@@ -11,18 +11,60 @@ class Users(Base):
 
     id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username = Column(String(255))
+    name = Column(String(255))
+    surname = Column(String(255))
+    email = Column(String(255))
+    url_picture = Column(String(255))
 
-    # One-to-many relationship with Account
+    # One-to-many relationships
     accounts = relationship("Account", back_populates="user", cascade="all, delete-orphan")
+    google_oauths = relationship("GoogleOAuth", back_populates="user", cascade="all, delete-orphan")
+    user_configurations = relationship("UserConfiguration", back_populates="user", cascade="all, delete-orphan")
+    monthly_subscriptions = relationship("MonthlySubscription", back_populates="user", cascade="all, delete-orphan")
+
+class GoogleOAuth(Base):
+    __tablename__ = "google_oauth"
+
+    id = Column(INT, primary_key=True, autoincrement=True)
+    user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    access_token = Column(Text)
+    refresh_token = Column(Text)
+    expires_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), default=func.now())
+
+    # Many-to-one relationship with Users
+    user = relationship("Users", back_populates="google_oauths")
+
+class UserConfiguration(Base):
+    __tablename__ = "user_configuration"
+
+    id = Column(INT, primary_key=True, autoincrement=True)
+    user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    minimum_founding_rate_to_show = Column(Float)
+    columns_to_show = Column(Text)
+    main_used_exchange = Column(Text, default="bitget") # 'bitget', 'binance', 'okx', 'crypto.com', 'kucoin'
+
+    # Many-to-one relationship with Users
+    user = relationship("Users", back_populates="user_configurations")
+
+class MonthlySubscription(Base):
+    __tablename__ = "monthly_subscription"
+
+    id = Column(INT, primary_key=True, autoincrement=True)
+    user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    subscription_date = Column(DateTime(timezone=True), default=func.now())
+    amount = Column(Float)
+    status = Column(String(255))
+
+    # Many-to-one relationship with Users
+    user = relationship("Users", back_populates="monthly_subscriptions")
 
 class Account(Base):
     __tablename__ = "accounts"
 
     id = Column(String(255), primary_key=True)
-    type = Column(String(255)) # Spot, Futures, Margin...
+    type = Column(String(255))
     email = Column(String(255))
-
-    # Foreign key to reference Users table
     user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
 
     # One-to-many relationship with Historical_PNL
@@ -36,18 +78,17 @@ class Historical_PNL(Base):
 
     id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     avg_entry_price = Column(String(255))
-    side = Column(String(10), nullable=False) # 'long' or 'short'
+    side = Column(String(10), nullable=False)
     pnl = Column(Float, nullable=False)
     net_profits = Column(Float, nullable=False)
     opening_fee = Column(Float)
     closing_fee = Column(Float)
     closed_value = Column(Float, nullable=False)
-
-    # Foreign key to reference Accounts table
     account_id = Column(String(255), ForeignKey('accounts.id'), nullable=False)
 
     # Many-to-one relationship with Account
     account = relationship("Account", back_populates="historical_pnls")
+
 
 # MIGRATE MODEL
 """

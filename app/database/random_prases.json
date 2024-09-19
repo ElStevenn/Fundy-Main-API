@@ -1,0 +1,59 @@
+[
+    {
+        "question":"Es possible ganar dinero con esto?",
+        "answer": "Sí, efectivamente, puedes ganar dinero, tiene algo de riesgo pero este método funciona",
+        "icon": "money / crypto icon"
+    },
+    {
+        "question": "Qué es eso de \"funding rate\"?",
+        "answer": "Tú, al igual que las monedas fiat, puedes pedir un préstamo, y tienen unos intereses, pues en crypto, puedes prestar tu dinero y te dan también unos intereses, eso sería en breve resumen",
+        "icon": ""
+    },
+    {
+        "question":"Como se gana dinero exáctamente?",
+        "answer":"Normalmente, durante 3 veces al día caduca el founding rate de los exchanges y se producen movimientos peliagudos, entoces aqui entra esta plataforma, aprobecharse de ese founding rate",
+        "icon": ""
+    },
+    {
+        "question": "Tengo derecho a probar esta aplicación?",
+        "answer":"Por supuesto! Tienes derecho a usar el auto trade bot se que se aprobecha del founding rate y patrones de gráfico por una semana! Luego tienes que pagar claro, pero merece mucho la pena!",
+        "icon": "app test icon"
+    },
+    {
+        "question":"Lo que estoy viendo es real?",
+        "answer": "Efectivamente! Puedes invertir una pequeña porción de tu capital con nostros y te ofrecemos una rentavilidad!",
+        "icon":"investing icon"
+    },
+    {
+        "question":"Donde puedo ver el apartado de suscripciones?",
+        "answer": "Dale click en el menú y seleccione 'Choose your plan'",
+        "icon": "images/subscription-business-model.png"
+    },
+    {
+        "question":"Te gustaría aprender exáctamente como funciona esto?",
+        "answer":"Dirijete a Menu > Learn Hot it works and watch the video",
+        "icon": "any learning icon"
+    },
+    {
+        "question": "Hay otras formas de ganar dinero que no sean con founding rate?",
+        "answer": "Actualmente esta página está centrada en ganar dinero con founding rate, hay varias maneras y varias estrategias, tanto automáticas como manuales, pero por ahora no, hasta futuras implementaciones y actualizaciones",
+        "icon": "icon of earning money"
+    },
+    {
+        "question":"Puedo hacer las operaciones por mi cuenta pero usar esta aplicación para wue me avise de criptomonedas con hight founding rate?",
+        "answer": "Obio! Claro que puedes hay una opción que te envia notificaciónes al correo y a tu teléfono movil cuando se hacerca una hora de liquidation founding rate!",
+        "icon": "by my own icon"
+    },
+    {
+        "question":"Acuerdate de recomendar está aplicación a tus amigos! Puedes ganar 15$ por cada amigo que invitas!",
+        "answer": null,
+        "icon":"icon of a friend"
+    },
+    {   
+        "question": "Cuál es el mínimo que debo de poner para ganar dinero?",
+        "answer":"Cualquier cantidad cuenta!!! Pero eso si, como es obio las ganancias son proporcionales luego, e incluso puedes configurar el capital por operación en tu exchange favorito",
+        "icon": ""
+    }
+
+
+]

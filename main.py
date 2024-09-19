@@ -9,6 +9,10 @@ import uuid, asyncio, schedule, os, time, threading, pytz
 
 from app import redis_service, schemas, tasksheduker
 from app.founding_rate_service.main_sercice_layer import FoundinRateService
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 # from app.founding_rate_service.schedule_layer import ScheduleLayer
 from app.founding_rate_service.bitget_layer import BitgetClient
 
@@ -54,24 +58,35 @@ origins = [
     "http://",
     "http://0.0.0.0:80",
     "http://localhost",
-    "http://3.143.209.3/"
+    "http://3.143.209.3/",
+    
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
 task_scheduler = tasksheduker.TaskScheduler()
 redis_service_ = redis_service.RedisService()
 founding_rate_service = FoundinRateService()
-# schedule_service = ScheduleLayer("Europe/Amsterdam"); bitget_client = BitgetClient()
+bitget_client = BitgetClient()
+scheduler = AsyncIOScheduler()
+# schedule_service = ScheduleLayer("Europe/Amsterdam")
 background_task = None 
 
+@app.on_event("startup")
+async def startup_event():
+    scheduler.start()
+    print("Scheduler started.")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    scheduler.shutdown()
+    print("Scheduler shut down.")
 
 app.mount("/mini_frontend", StaticFiles(directory="frontend"), name="static")
 
@@ -511,7 +526,6 @@ async def add_new_alert_if_crypto_reaches_price(request_body: schemas.CryptoAler
 
 
 # PART 3 | FOUNDING RATE SERVICE
-
 @app.get("/founding_rate_service/status", description="", tags=['Founding Rate Service'])
 async def see_founding_rate_service():
     """Check the status of the Founding Rate Service."""
@@ -525,33 +539,26 @@ async def see_founding_rate_service():
 @app.post("/founding_rate_service/start", description="", tags=['Founding Rate Service'])
 async def start_founding_rate_service():
     """Start the Founding Rate Service."""
-    global background_task
-
-    # Check if a task is already running
-    if background_task and not background_task.done():
+    if founding_rate_service.status == 'running':
         raise HTTPException(status_code=400, detail="Service is already running")
 
-    # Program the `innit_procces` for the next process time
+    # Calculate next execution time
     next_execution_time = founding_rate_service.get_next_execution_time() - timedelta(minutes=5)
-    print(f"Scheduled 'innit_procces' at {next_execution_time.strftime('%H:%M')} in timezone {founding_rate_service.timezone}")
     founding_rate_service.next_execution_time = next_execution_time
 
-    # Calculate delay in seconds until the target datetime
-    delay = (next_execution_time - datetime.now(pytz.timezone(founding_rate_service.timezone))).total_seconds()
+    print(f"Scheduling 'innit_procces' at {next_execution_time.isoformat()} in timezone {founding_rate_service.timezone}")
 
-    print("the total delay is >", delay)
-    # Schedule the asynchronous function to run once
-    loop = asyncio.get_event_loop()
-
-    async def schedule_task():
-        await asyncio.sleep(delay)
-        await founding_rate_service.innit_procces()
-
-    background_task = asyncio.create_task(schedule_task())  # Create a background task that waits and then runs the function
+    # Schedule the `innit_procces` method
+    scheduler.add_job(
+        founding_rate_service.innit_procces,
+        trigger=DateTrigger(run_date=next_execution_time),
+        id="founding_rate_service_job",
+        replace_existing=True
+    )
 
     founding_rate_service.status = 'running'
 
-    return {"status": "Service started"}
+    return {"status": "Service started", "next_execution_time": next_execution_time.isoformat()}
 
 
 
@@ -574,12 +581,6 @@ def next_execution_time_test(minutes = 5) -> datetime:
     return next_time
 
 
-@app.post("/testings/schedule_function", tags=['Testing'])
-async def test_schedule_function(request_body: schemas.OpenOrderTest):
-   
-
-    return {"message": "This function is not working anymore.."}
-
 @app.get("/test_schedule", tags=['Testing'])
 async def test_dirty_schedule(background_tasks: BackgroundTasks):
     today = datetime.now(timezone('Europe/Amsterdam'))
@@ -593,6 +594,30 @@ async def test_dirty_schedule(background_tasks: BackgroundTasks):
 @app.get("/get_next_execution_time", tags=['Testing'])
 async def next_execution_time():
     return {"next_execution_time": founding_rate_service.next_execution_time}
+
+# SAAS Service
+@app.get("/get_hight_founind_rates", description="", tags=["SaaS"])
+async def get_hight_founind_rates():
+    min_fnd_rte = -0.5
+
+    all_cryptos = await bitget_client.get_future_cryptos()
+    fetched_crypto =  bitget_client.fetch_future_cryptos(all_cryptos)
+
+    only_low_crypto = [{"symbol": crypto["symbol"], "fundingRate": crypto["fundingRate"]} 
+                        for crypto in fetched_crypto if crypto["fundingRate"] < min_fnd_rte]
+
+    return only_low_crypto
+
+@app.get("/get_historical_founding_rate/{symbol}", description="Get historical founing rate of a crypto", tags=["SaaS"])
+async def get_historical_founding_rate(symbol: str):
+    historical_founding_rate = await bitget_client.get_historical_funding_rate(symbol)
+
+    return historical_founding_rate
+
+@app.get("/get_random_faq", description="Get random phrase to put it in the FAQ part", tags=["SaaS"])
+async def get_radom_faq():
+    return {"response": "under construction"}
+
 
 if __name__ == "__main__":
     import uvicorn
