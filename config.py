@@ -17,6 +17,14 @@ AMOUNT_ORDER = 10 # At this version, the amount of money per order is fixed
 
 # Database
 DB_NAME = os.getenv('DB_NAME', 'db-name')
-DB_USER = os.getenv('DB_USERNAME', 'username')
+DB_USER = os.getenv('DB_USER', 'username')
 DB_PASS = os.getenv('DB_PASS', 'password')
 DB_HOST = os.getenv('DB_HOST', '0.0.0.0')
+
+# Google Oauth
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', 'your-google-client-id')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', 'your-client-sercret')
+GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost/google/callback')
+
+# Security 
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-jwt-secret-key-here')

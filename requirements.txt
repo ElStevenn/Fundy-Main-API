@@ -1,10 +1,13 @@
+google-auth
+google-auth-oauthlib
+google-api-python-client
 fastapi
 aiohttp
 uvicorn
 pydantic
 requests
 schedule
-bs4
+beautifulsoup4
 lxml
 pytz
 python-dotenv
@@ -13,3 +16,5 @@ redis
 apscheduler
 sqlalchemy
 alembic
+pyjwt
+asyncpg

@@ -28,13 +28,9 @@ def db_connection(func):
                 except IntegrityError as e:
                     await session.rollback()
                     raise HTTPException(status_code=400, detail=str(e))
-                except DBAPIError as e:
-                    await session.rollback()
-                    raise HTTPException(status_code=500, detail="Database error")
-                except Exception as e:
-                    await session.rollback()
-                    print("An error occurred:", e)
-                    raise HTTPException(status_code=500, detail="Internal server error")
+                # except DBAPIError as e:
+                #     await session.rollback()
+                #     raise HTTPException(status_code=500, detail="Database error, probably because the developer ")
     return wrapper
 
 
@@ -47,6 +43,7 @@ async def create_new_user(session: AsyncSession, username: str, name: Optional[s
     """
     Create a new user with the provided details.
     """
+
     new_user = Users(
         username=username,
         name=name,
@@ -55,9 +52,9 @@ async def create_new_user(session: AsyncSession, username: str, name: Optional[s
         url_picture=url_picture
     )
     session.add(new_user)
-    await session.flush()  # Flush to assign an ID
-    await session.refresh(new_user)  # Refresh to get updated fields
-    return new_user
+    await session.flush()  
+    await session.refresh(new_user)  
+    return new_user.id
 
 
 @db_connection
@@ -85,6 +82,29 @@ async def add_new_account(session: AsyncSession, user_id: uuid.UUID, account_typ
     await session.refresh(new_account)
     return new_account
 
+
+@db_connection
+async def check_if_user_exists(session: AsyncSession, email: str):
+    """
+    Check if user exsits in the database by its email
+    """
+    result = await session.execute(
+        select(Users).where(Users.email == email)
+    )
+    
+    user = result.scalar_one_or_none()
+
+    if not user:
+        return None
+    else:
+        return {
+            "user_id": user.id,
+            "username": user.username,
+            "name": user.name,
+            "surname": user.surname,
+            "email": user.email,
+        }
+    
 
 @db_connection
 async def delete_account_cascade(session: AsyncSession, email: str, account_type: str):
@@ -137,7 +157,7 @@ async def create_new_historical_pnl(session: AsyncSession, data: CreateHistorica
 
 
 @db_connection
-async def create_google_oauth(session: AsyncSession, data: CreateGoogleOAuth):
+async def create_google_oauth(session: AsyncSession, id: str, data: CreateGoogleOAuth):
     """
     Create a new GoogleOAuth record for a user.
     """
@@ -148,18 +168,19 @@ async def create_google_oauth(session: AsyncSession, data: CreateGoogleOAuth):
         raise HTTPException(status_code=404, detail="User not found")
 
     new_oauth = GoogleOAuth(
+        id=id,
         user_id=data.user_id,
         access_token=data.access_token,
         refresh_token=data.refresh_token,
         expires_at=data.expires_at
     )
     session.add(new_oauth)
-    await session.flush()  # Assigns an ID
-    await session.refresh(new_oauth)  # Refresh to get updated fields
+    await session.flush()  
+    await session.refresh(new_oauth)  
     return new_oauth
 
 @db_connection
-async def update_google_oauth(session: AsyncSession, oauth_id: int, data: UpdateGoogleOAuth):
+async def update_google_oauth(session: AsyncSession, oauth_id: str, data: UpdateGoogleOAuth):
     """
     Update an existing GoogleOAuth record identified by its ID.
     """
@@ -177,10 +198,11 @@ async def update_google_oauth(session: AsyncSession, oauth_id: int, data: Update
     if data.expires_at is not None:
         oauth_record.expires_at = data.expires_at
 
-    session.add(oauth_record)
-    await session.flush()
-    await session.refresh(oauth_record)
+    # No need to re-add since the object is already tracked
+    await session.flush()  # You can even try removing this if errors persist
+    await session.refresh(oauth_record)  # Optionally ensure it's refreshed
     return oauth_record
+
 
 @db_connection
 async def delete_google_oauth(session: AsyncSession, oauth_id: int):
@@ -195,5 +217,22 @@ async def delete_google_oauth(session: AsyncSession, oauth_id: int):
 
     await session.delete(oauth_record)
     return {"status": "success", "detail": f"GoogleOAuth record with ID {oauth_id} deleted successfully."}
+
+@db_connection
+async def get_google_credentials(session: AsyncSession, user_id_) -> dict:
+    """
+    Get user credentials by its id
+    """
+    
+    result = await session.execute(select(GoogleOAuth).where(GoogleOAuth.user_id == user_id_))
+    google_credentials = result.scalar_one_or_none()
+    
+    if not google_credentials:
+        raise HTTPException(status_code=404, detail="Credentials not found")
+
+    return {
+        "acces_token": google_credentials.access_token,
+        "refresh_token": google_credentials.refresh_token
+    }
 
 

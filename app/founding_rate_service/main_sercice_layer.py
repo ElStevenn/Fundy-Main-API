@@ -4,6 +4,7 @@ from typing import Literal, Optional
 import pytz
 
 from app.founding_rate_service.bitget_layer import BitgetClient
+from app.founding_rate_service.schedule_layer import ScheduleLayer
 from app.redis_service import RedisService
 from app.founding_rate_service.chart_analysis import FundingRateChart
 from config import (
@@ -15,11 +16,7 @@ from config import (
 
 class FoundinRateService:
     def __init__(self) -> None:
-        self.first_execution_times = [
-            time(hour, minute)
-            for hour in range(24)
-            for minute in range(0, 60, 15)
-        ]
+        self.first_execution_times = [time(hour, minute) for hour in range(24) for minute in range(0, 60, 15)]
         self.timezone = "Europe/Amsterdam"
         self.next_execution_time: Optional[datetime] = None
 
@@ -32,9 +29,11 @@ class FoundinRateService:
         # Initialize clients
         self.bitget_client = BitgetClient()
         self.redis_service = RedisService()
+        self.async_scheduler = ScheduleLayer(self.timezone)
 
     def get_next_execution_time(self, ans: bool = False) -> datetime:
-        now_datetime = datetime.now(pytz.timezone(self.timezone))
+        timezone = pytz.timezone(self.timezone)
+        now_datetime = datetime.now(timezone)
         now_time = now_datetime.time()
 
         sorted_times = sorted(t for t in self.first_execution_times if t > now_time)
@@ -43,12 +42,13 @@ class FoundinRateService:
         else:
             next_time_of_day = self.first_execution_times[0]
 
-        next_execution_datetime = datetime.combine(
-            now_datetime.date(),
-            next_time_of_day,
-            tzinfo=pytz.timezone(self.timezone)
-        )
+        # Combine current date with next_time_of_day
+        naive_datetime = datetime.combine(now_datetime.date(), next_time_of_day)
 
+        # Localize the naive datetime to the specified timezone
+        next_execution_datetime = timezone.localize(naive_datetime)
+
+        # If the scheduled time is in the past, schedule for the next day
         if next_execution_datetime <= now_datetime:
             next_execution_datetime += timedelta(days=1)
 
@@ -88,9 +88,7 @@ class FoundinRateService:
                         chart = FundingRateChart(crypto['symbol'], granularity='1min', limit=limit)
                         last_funding_rates = chart.determine_by_past_funding_rates()
                         if last_funding_rates['result'] == 'long':
-                            asyncio.create_task(self.schedule_open_long(crypto, last_funding_rates['type'])
-
-                            )
+                            asyncio.create_task(self.schedule_open_long(crypto, last_funding_rates['type']))
                         elif last_funding_rates['result'] == 'short':
                             asyncio.create_task(self.schedule_open_short(crypto, last_funding_rates['type']))
                         else:
@@ -129,12 +127,13 @@ class FoundinRateService:
         next_execution_time = self.get_next_execution_time(ans=True) - timedelta(minutes=5)
         print(f"Scheduled 'innit_procces' at {next_execution_time.strftime('%Y-%m-%d %H:%M:%S')} in timezone {self.timezone}")
 
-        delay = (next_execution_time - datetime.now(pytz.timezone(self.timezone))).total_seconds()
-        if delay < 0:
-            delay = 0  # Execute immediately if the time has already passed
+        # Schedule the `innit_procces` method using ScheduleLayer's schedule_process_time
+        self.async_scheduler.schedule_process_time(
+            run_time=next_execution_time,
+            function_to_call=self.innit_procces
+        )
 
         self.next_execution_time = next_execution_time
-        asyncio.create_task(self._schedule_after_delay(delay, self.innit_procces))
 
     async def _schedule_after_delay(self, delay: float, coro):
         try:
@@ -285,19 +284,3 @@ class FoundinRateService:
         print("RANDOM FUNCTION!")
         order_lol = await self.bitget_client.get_pnl_order("BTCUSDT")
         print(order_lol)
-
-
-async def main():
-    service = FoundinRateService()
-    await service.start_service()
-
-    # Keep the service running indefinitely
-    try:
-        while True:
-            await asyncio.sleep(3600)  # Sleep for an hour, adjust as needed
-    except (KeyboardInterrupt, SystemExit):
-        await service.stop_service()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

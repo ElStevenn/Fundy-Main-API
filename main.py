@@ -1,11 +1,18 @@
-from fastapi import FastAPI, Request, BackgroundTasks, HTTPException
+# main.py
+# Author: Pau Mateu
+# Developer email: paumat17@gmail.com
+
+from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Depends, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Annotated
 from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
+from starlette.responses import RedirectResponse
 from datetime import datetime, timedelta
 from pytz import timezone
-import uuid, asyncio, schedule, os, time, threading, pytz
+import uuid, asyncio, schedule, os, time, threading, pytz, jwt
+
 
 from app import redis_service, schemas, tasksheduker
 from app.founding_rate_service.main_sercice_layer import FoundinRateService
@@ -13,15 +20,28 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
-# from app.founding_rate_service.schedule_layer import ScheduleLayer
+from app.founding_rate_service.schedule_layer import ScheduleLayer
 from app.founding_rate_service.bitget_layer import BitgetClient
+from app.google_service import get_credentials_from_code, get_google_flow
+from app.security import get_current_active_credentials_google, get_current_active_user, encode_session_token
+from app.database import crud
+from app.database import schemas as dbschemas
+from config import GOOGLE_CLIENT_ID
+
+async_scheduler = ScheduleLayer("Europe/Amsterdam")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    loop = asyncio.get_event_loop()
-    threading.Thread(target=run_scheduler, args=(loop,), daemon=True).start()  
-    yield
+    # Start the scheduler
+    async_scheduler.scheduler.start()
+    print("Scheduler started.")
+    try:
+        yield
+    finally:
+        # Shutdown the scheduler
+        async_scheduler.scheduler.shutdown()
+        print("Scheduler shut down.")
 
 app = FastAPI(
     title="Schedule Task Node",
@@ -50,7 +70,7 @@ app = FastAPI(
     ),
     lifespan=lifespan,
     version="1.0",
-    servers=[{"url":"http://18.101.108.204/", "description":"USA"},{"url":"http://localhost/", "description":"EU"}]
+    servers=[{"url":"http://localhost/", "description":"EU"}] # {"url":"http://18.101.108.204/", "description":"USA"},
 )
 
 
@@ -74,19 +94,7 @@ task_scheduler = tasksheduker.TaskScheduler()
 redis_service_ = redis_service.RedisService()
 founding_rate_service = FoundinRateService()
 bitget_client = BitgetClient()
-scheduler = AsyncIOScheduler()
-# schedule_service = ScheduleLayer("Europe/Amsterdam")
 background_task = None 
-
-@app.on_event("startup")
-async def startup_event():
-    scheduler.start()
-    print("Scheduler started.")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    scheduler.shutdown()
-    print("Scheduler shut down.")
 
 app.mount("/mini_frontend", StaticFiles(directory="frontend"), name="static")
 
@@ -526,54 +534,6 @@ async def add_new_alert_if_crypto_reaches_price(request_body: schemas.CryptoAler
 
 
 # PART 3 | FOUNDING RATE SERVICE
-@app.get("/founding_rate_service/status", description="", tags=['Founding Rate Service'])
-async def see_founding_rate_service():
-    """Check the status of the Founding Rate Service."""
-
-    return {"status": founding_rate_service.status}
-
-
-
-
-
-@app.post("/founding_rate_service/start", description="", tags=['Founding Rate Service'])
-async def start_founding_rate_service():
-    """Start the Founding Rate Service."""
-    if founding_rate_service.status == 'running':
-        raise HTTPException(status_code=400, detail="Service is already running")
-
-    # Calculate next execution time
-    next_execution_time = founding_rate_service.get_next_execution_time() - timedelta(minutes=5)
-    founding_rate_service.next_execution_time = next_execution_time
-
-    print(f"Scheduling 'innit_procces' at {next_execution_time.isoformat()} in timezone {founding_rate_service.timezone}")
-
-    # Schedule the `innit_procces` method
-    scheduler.add_job(
-        founding_rate_service.innit_procces,
-        trigger=DateTrigger(run_date=next_execution_time),
-        id="founding_rate_service_job",
-        replace_existing=True
-    )
-
-    founding_rate_service.status = 'running'
-
-    return {"status": "Service started", "next_execution_time": next_execution_time.isoformat()}
-
-
-
-
-@app.delete("/founding_rate_service/stop", description="", tags=['Founding Rate Service'])
-async def stop_founding_rate_service():
-    """Stop the Founding Rate Service."""
-    global background_task
-    if background_task and not background_task.done():
-        background_task.cancel()  
-        founding_rate_service.stop_service() 
-
-        return {"status": "Service stopped"}
-    else:
-        raise HTTPException(status_code=400, detail="Service is not running")
 
 def next_execution_time_test(minutes = 5) -> datetime:
     today = datetime.now(timezone('Europe/Amsterdam'))
@@ -596,17 +556,100 @@ async def next_execution_time():
     return {"next_execution_time": founding_rate_service.next_execution_time}
 
 # SAAS Service
-@app.get("/get_hight_founind_rates", description="", tags=["SaaS"])
-async def get_hight_founind_rates():
-    min_fnd_rte = -0.5
+@app.get("/get_hight_founind_rates/{limit}", description="", tags=["SaaS"])
+async def get_hight_founind_rates(limit):
 
     all_cryptos = await bitget_client.get_future_cryptos()
     fetched_crypto =  bitget_client.fetch_future_cryptos(all_cryptos)
 
     only_low_crypto = [{"symbol": crypto["symbol"], "fundingRate": crypto["fundingRate"]} 
-                        for crypto in fetched_crypto if crypto["fundingRate"] < min_fnd_rte]
+                        for crypto in fetched_crypto if crypto["fundingRate"] < float(limit)]
 
     return only_low_crypto
+
+@app.get("/google/login", description="Oauth 2.0 with google", tags=["SaaS"])
+async def google_login():
+    flow = get_google_flow()
+    authorization_url, state = flow.authorization_url(
+        access_type='offline',
+        include_granted_scopes='true',
+        prompt='consent'  # Ensure refresh token is always returned
+    )
+    return RedirectResponse(authorization_url)
+
+@app.get("/google/callback", description="Oauth 2.0 callback", tags=["SaaS"])
+async def google_callback(code: str):
+    # Get full credentials
+    try:
+        credentials = get_credentials_from_code(code)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error obtaining credentials: {str(e)}")
+    
+    # Get Name, Surname, picutre, username, user id....
+    id_token = credentials.id_token
+    try:
+        decoded_token = jwt.decode(
+            id_token,
+            options={"verify_signature": False},
+            audience=GOOGLE_CLIENT_ID
+        )
+        
+        user_email = decoded_token.get('email')
+        user_name = decoded_token.get('name') 
+        user_given_name = decoded_token.get('given_name') 
+        user_family_name = decoded_token.get('family_name') 
+        user_picture = decoded_token.get('picture') 
+        user_id = decoded_token.get('sub')  
+        
+        if not user_email:
+            raise HTTPException(status_code=400, detail="Email not found in token")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="ID token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid ID token")
+
+    # Create / Update credentials and permissions
+    user = await crud.check_if_user_exists(user_email)
+    if not user: 
+        new_user_id = await crud.create_new_user(
+            username=user_given_name, name=user_name, surname=user_family_name,
+            email=user_email, url_picture=user_picture
+            )
+        
+        new_creds = dbschemas.CreateGoogleOAuth(
+            user_id=new_user_id,
+            access_token=credentials.token,
+            refresh_token=credentials.refresh_token,
+            expires_at=credentials.expiry
+        )
+        await crud.create_google_oauth(str(user_id), new_creds)
+        type_response = "new_user"
+        
+    else:
+        print("User already exists.. So update the credentials :)")
+        user_credentials = dbschemas.UpdateGoogleOAuth(
+            access_token=credentials.token,
+            refresh_token=credentials.refresh_token,
+            expires_at=credentials.expiry
+        )
+        await crud.update_google_oauth(str(user_id),user_credentials)
+        type_response = "login_user"
+        new_user_id = user['user_id']
+
+    # Generate Beaber Token
+    try:
+        session_token = encode_session_token(
+            str(new_user_id)
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating session token: {str(e)}")
+
+    # Redirect to the needed page whether register or login and set the needed cookies
+    if type_response == "login_user":
+        return {"status": "success", "redirect": "dashboard","credentials": f"Bearer {session_token}"}
+    elif type_response == "new_user":
+        return {"status": "success", "redirect": "complete register","credentials": f"Bearer {session_token}"}
+
 
 @app.get("/get_historical_founding_rate/{symbol}", description="Get historical founing rate of a crypto", tags=["SaaS"])
 async def get_historical_founding_rate(symbol: str):
@@ -618,6 +661,69 @@ async def get_historical_founding_rate(symbol: str):
 async def get_radom_faq():
     return {"response": "under construction"}
 
+@app.get("/get_user_profile", description="### Get perfile user data:\n\n - **Name**\n\n - **Surname**\n\n - **Email**\n\n - **thumbnail(url)**", tags=["SaaS"])
+async def get_user_profile(user_credentials: Annotated[tuple[dict, str], Depends(get_current_active_credentials_google)]):
+    return {}
+
+
+# Administrative Service
+@app.post("/founding_rate_service/start", description="Start funding rate bot", tags=['Administrative Part'])
+async def start_founding_rate_service():
+    """Start the Founding Rate Service."""
+    if founding_rate_service.status == 'running':
+        raise HTTPException(status_code=400, detail="Service is already running")
+
+    # Calculate next execution time
+    next_execution_time = founding_rate_service.get_next_execution_time() - timedelta(minutes=5)
+    founding_rate_service.next_execution_time = next_execution_time
+    print(f"Scheduling 'innit_procces' at {next_execution_time.isoformat()} in timezone {founding_rate_service.timezone}")
+
+    # Schedule the `innit_procces` method
+    async_scheduler.schedule_process_time(next_execution_time, founding_rate_service.innit_procces)
+
+    founding_rate_service.status = 'running'
+
+    return {"status": "Service started", "next_execution_time": next_execution_time.isoformat()}
+
+
+@app.delete("/founding_rate_service/stop", description="", tags=['Administrative Part'])
+async def stop_founding_rate_service():
+    """Stop the Founding Rate Service."""
+
+    if founding_rate_service.status == "stopped":
+        raise HTTPException(status_code=400, detail="Service is not running")
+
+    async_scheduler.stop_all_jobs()
+    founding_rate_service.status = "stopped"
+    founding_rate_service.next_execution_time = None
+
+    return {"status": "Service stopped"}
+
+@app.get("/founding_rate_service/status", description="", tags=['Administrative Part'])
+async def see_founding_rate_service():
+    """Check the status of the Founding Rate Service."""
+
+    return {"status": founding_rate_service.status}
+
+@app.get("/get_next_execution_time", description="Get next execution time in iso format time", tags=['Administrative Part'])
+async def next_exec_time():
+    nex_exec_time = founding_rate_service.next_execution_time.isoformat()
+    if not nex_exec_time:
+        raise HTTPException(status_code=403, detail="The service is not running, please start the service before")
+    
+    return {"result": nex_exec_time}
+
+@app.get("/get_scheduled_cryptos", description="See what cryptos are in the crosshairs")
+async def get_scheduled_cryptos():
+    return {}
+
+@app.post("/start_rest_sercies", description="Start Other services such as get all the cryptos an see if there are new crytpos or cryptos thare beeing deleted, among other services", tags=['Administrative Part'])
+async def start_rest_services():
+    return {}
+
+@app.delete("/stop_rest_services", description="Stop Each day tasks",tags=['Administrative Part'])
+async def stop_rest_services():
+    return {}
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: schedule-node
+data:
+  # First part of te schedule node config
+  default_time_zone: "Europe/Amsterdam"
+  developer_email: "devtravel36o@gmail.com"
+
+  # Error notification
+  error_notification_active: 'True'
+  error_message_prompt: "An error occurred with schedule %s. Please look at the schedule node, there is an error"
+
+  # Success notification
+  succes_notification_active: 'False'
+  succes_message_prompt: "GREAT! The action has been triggered successfully!"
+
+
+  # Founding rate configuration

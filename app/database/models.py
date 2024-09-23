@@ -1,4 +1,4 @@
-from sqlalchemy import String, Float, DateTime, Text, ForeignKey, JSON, INT, Column, func, Integer, Numeric
+from sqlalchemy import String, Float, DateTime, Text, ForeignKey, JSON, BIGINT, Column, func, Integer, Numeric, INT
 from sqlalchemy.dialects.postgresql import UUID as pgUUID
 from sqlalchemy.orm import relationship, declarative_base
 import uuid
@@ -24,7 +24,7 @@ class Users(Base):
 class GoogleOAuth(Base):
     __tablename__ = "google_oauth"
 
-    id = Column(INT, primary_key=True, autoincrement=True)
+    id = Column(String(255), primary_key=True)
     user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
     access_token = Column(Text)
     refresh_token = Column(Text)
@@ -37,7 +37,7 @@ class GoogleOAuth(Base):
 class UserConfiguration(Base):
     __tablename__ = "user_configuration"
 
-    id = Column(INT, primary_key=True, autoincrement=True)
+    id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
     minimum_founding_rate_to_show = Column(Float)
     columns_to_show = Column(Text)
@@ -49,7 +49,7 @@ class UserConfiguration(Base):
 class MonthlySubscription(Base):
     __tablename__ = "monthly_subscription"
 
-    id = Column(INT, primary_key=True, autoincrement=True)
+    id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
     subscription_date = Column(DateTime(timezone=True), default=func.now())
     amount = Column(Float)
@@ -121,4 +121,9 @@ class CryptoHistoricalPNL(Base):
 """
  - alembic upgrade head
  - alembic revision --autogenerate -m "Updated models"
+
+ | 
+
+  ../../venv/bin/alembic upgrade head
+  ../../venv/bin/alembic revision --autogenerate -m "Updated models"
 """
