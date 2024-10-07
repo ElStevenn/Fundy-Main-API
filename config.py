@@ -28,3 +28,8 @@ GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost/google/
 
 # Security 
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-jwt-secret-key-here')
+FRONTEND_IP = os.getenv('FRONTEND_IP', 'https//0.0.0.0/')
+HISTORICAL_FR_API_IP = os.getenv('HISTORICAL_FR_API_IP', 'https//0.0.0.0/')
+
+# API-KEYS
+COINMARKETCAP_APIKEY = os.getenv('COINMARKETCAP_APIKEY', 'coinmarketcap-apikey')

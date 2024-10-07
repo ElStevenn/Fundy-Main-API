@@ -56,12 +56,12 @@ async def get_current_active_user(
 async def get_current_credentials(token: Annotated[str, Depends(oauth2_scheme)]):
     user_id = decode_session_token(token)
  
-    credentials = get_google_credentials(user_id)
-    return credentials
+    credentials = await get_google_credentials(user_id)
+    return credentials, user_id
 
 
 async def get_current_active_credentials_google(
         current_user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]
     ):
-    credentials, service = current_user_credentials  
-    return credentials, service
+    credentials, user_id = current_user_credentials  
+    return user_id, credentials

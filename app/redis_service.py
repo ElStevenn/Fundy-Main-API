@@ -94,7 +94,7 @@ class RedisService:
         self.ensure_correct_key_type()
         crypto_lead_key = f"crypto_leads:{symbol}"
         crypto_lead_data = {"symbol": symbol, "fundingRate": fundingRate}
-        self._r.hset("crypto_leads", crypto_lead_key, json.dumps(crypto_lead_data))
+        self._r.hset("crpto_leads", crypto_lead_key, json.dumps(crypto_lead_data))
     
     def read_all_crypto_lead(self) -> Dict[str, Any]:
         """Read all crypto leads from Redis."""

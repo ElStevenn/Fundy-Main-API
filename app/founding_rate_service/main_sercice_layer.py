@@ -123,6 +123,7 @@ class FoundinRateService:
         except Exception as e:
             print(f"Error in innit_procces: {e}")
 
+
     def schedule_next_execution(self):
         next_execution_time = self.get_next_execution_time(ans=True) - timedelta(minutes=5)
         print(f"Scheduled 'innit_procces' at {next_execution_time.strftime('%Y-%m-%d %H:%M:%S')} in timezone {self.timezone}")
@@ -284,3 +285,16 @@ class FoundinRateService:
         print("RANDOM FUNCTION!")
         order_lol = await self.bitget_client.get_pnl_order("BTCUSDT")
         print(order_lol)
+
+
+
+
+
+async def main_tests():
+    founding_rate_serv = FoundinRateService()
+
+
+
+
+if __name__ == "__main__":
+    asyncio.run(main_tests())

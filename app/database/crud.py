@@ -9,7 +9,7 @@ from typing import Optional
 from datetime import timedelta, datetime, timezone
 from pydantic import BaseModel
 from .schemas import *
-import uuid
+import uuid, asyncio
 
 
 def db_connection(func):
@@ -219,12 +219,12 @@ async def delete_google_oauth(session: AsyncSession, oauth_id: int):
     return {"status": "success", "detail": f"GoogleOAuth record with ID {oauth_id} deleted successfully."}
 
 @db_connection
-async def get_google_credentials(session: AsyncSession, user_id_) -> dict:
+async def get_google_credentials(session: AsyncSession, user_id) -> dict:
     """
     Get user credentials by its id
     """
     
-    result = await session.execute(select(GoogleOAuth).where(GoogleOAuth.user_id == user_id_))
+    result = await session.execute(select(GoogleOAuth).where(GoogleOAuth.user_id == user_id))
     google_credentials = result.scalar_one_or_none()
     
     if not google_credentials:
@@ -232,7 +232,68 @@ async def get_google_credentials(session: AsyncSession, user_id_) -> dict:
 
     return {
         "acces_token": google_credentials.access_token,
-        "refresh_token": google_credentials.refresh_token
+        "refresh_token": google_credentials.refresh_token,
+        "user_id": google_credentials.user_id
     }
 
+@db_connection
+async def get_user_profile(session: AsyncSession, user_id) -> dict:
+    """Get user profile by its id"""
+    result = await session.execute(select(Users).where(Users.id == user_id))
+    user = result.scalar_one_or_none()
+    if user:
+        return {
+            "username": user.username,
+            "name": user.name,
+            "surname": user.surname,
+            "email": user.email,
+            "url_picture": user.url_picture
+        }
+    else:
+        raise HTTPException(status_code=404, detail="User not found")
 
+@db_connection
+async def update_profile(session: AsyncSession, email: str, user_update: UpdateProfileUpdate):
+    """Update user profile"""
+    result = await session.execute(
+        update(Users)
+        .where(Users.email == email)
+        .values(
+            name=user_update.name,
+            surname=user_update.surname,
+            url_picture=user_update.url_picture
+        )
+        .execution_options(synchronize_session="fetch")
+    )
+    
+    await session.commit()
+    return result.rowcount  
+
+
+@db_connection
+async def get_joined_users(session: AsyncSession, limit: int):
+    """Get all joined users on this platform"""
+    result = await session.execute(
+        select(Users).order_by(Users.joined_at.desc()).limit(limit)
+    )
+    users = result.scalars().all()
+    
+    return users
+
+        
+# USER CONFIGURATION TABLE
+@db_connection
+async def get_users_sorted_by_joined_at(session: AsyncSession):
+    result = await session.execute(
+        select(Users)
+        .order_by(Users.joined_at.desc())
+    )
+    return result.scalars().all()
+
+
+
+async def main_tesings():
+    await get_joined_users(10)
+
+if __name__ == "__main__":
+    asyncio.run(main_tesings())

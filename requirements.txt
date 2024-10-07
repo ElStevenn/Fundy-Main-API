@@ -18,3 +18,4 @@ sqlalchemy
 alembic
 pyjwt
 asyncpg
+scipy

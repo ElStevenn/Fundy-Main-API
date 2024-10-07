@@ -374,17 +374,17 @@ async def main_testings():
     periods = 2
     limit = (60 * 8) * periods 
 
-    chart = FundingRateChart("UXLINKUSDT", granularity='1min', limit=limit)# Limit is equal to 3 periods 
+    chart = FundingRateChart("UXLINKUSDT", granularity='1min', limit=limit) 
 
-    await chart.fetch_data() # Important call this method after calling the previous one
-    await chart.fetch_funding_rate_expiration_time() # Call this method if expiration time with other times is involved
+    await chart.fetch_data()
+    await chart.fetch_funding_rate_expiration_time() #
 
     
 
     # Analyse incrementation 
     past_founing_rate = await chart.get_historical_analysis()
 
-    # print("last incrementation -> ", past_founing_rate)
+    print("last incrementation -> ", past_founing_rate)
 
 
 if __name__ == "__main__":

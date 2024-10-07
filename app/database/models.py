@@ -13,6 +13,8 @@ class Users(Base):
     name = Column(String(255))
     surname = Column(String(255))
     email = Column(String(255))
+    role = Column(String(20), default='user') # 'user', 'moderator', 'administrator'
+    joined_at = Column(DateTime(timezone=True), default=func.now())
     url_picture = Column(String(255))
 
     # One-to-many relationships
@@ -39,8 +41,8 @@ class UserConfiguration(Base):
 
     id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    client_timezone = Column(Text, default='Europe/Amsterdam')
     minimum_founding_rate_to_show = Column(Float)
-    columns_to_show = Column(Text)
     main_used_exchange = Column(Text, default="bitget") # 'bitget', 'binance', 'okx', 'crypto.com', 'kucoin'
 
     # Many-to-one relationship with Users

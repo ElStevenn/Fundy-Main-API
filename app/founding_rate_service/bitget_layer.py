@@ -1,4 +1,4 @@
-from config import BITGET_APIKEY, BITGET_PASSPHRASE, BITGET_SECRET_KEY, LEVERAGE
+from config import BITGET_APIKEY, BITGET_PASSPHRASE, BITGET_SECRET_KEY, LEVERAGE, COINMARKETCAP_APIKEY
 from fastapi.encoders import jsonable_encoder
 from fastapi import HTTPException
 from typing import Optional, Literal
@@ -35,6 +35,7 @@ class BitgetClient:
         self.api_secret_key = BITGET_SECRET_KEY
         self.passphrase = BITGET_PASSPHRASE
         self.api_url = "https://api.bitget.com"
+        self._api_timezone = pytz.utc
 
 
     def get_timestamp(self) -> str:
@@ -164,45 +165,121 @@ class BitgetClient:
                 }
                 
                 return last_pnl_order
-                
-    async def get_candlestick_chart(self, symbol: str, granularity: Granularity = '1min', limit: int = 100) -> np.ndarray:
-        url = 'https://api.bitget.com/api/v2/spot/market/candles'
-        params = {'symbol': symbol, 'granularity': granularity, 'limit': limit}
 
-        try:
+    def calculate_api_calls(self, start_time: int, end_time: int, granularity_ms: int):
+        time_diff = end_time - start_time
+        total_candles = time_diff // granularity_ms
+        max_candles_per_call = 1000
+
+        print(f"Total candles: {total_candles}, time difference: {time_diff}, granularity in ms: {granularity_ms}")
+
+        if total_candles == 0:
+            return []
+
+        calls = []
+        current_start_time = start_time
+
+        while total_candles > 0:
+            candles_in_this_call = min(total_candles, max_candles_per_call)
+            current_end_time = current_start_time + (candles_in_this_call * granularity_ms)
+
+            calls.append({
+                "start_time": current_start_time,
+                "end_time": current_end_time,
+                "candles": candles_in_this_call
+            })
+
+            current_start_time = current_end_time + granularity_ms
+            total_candles -= candles_in_this_call
+
+        print(f"Calculated API calls: {calls}")
+        return calls
+
+    def convert_granularity_to_ms(self, granularity: str) -> int:
+        if granularity == "1m":
+            return 60 * 1000
+        elif granularity == "5m":
+            return 5 * 60 * 1000
+        elif granularity == "15m":
+            return 15 * 60 * 1000
+        elif granularity == "30m":
+            return 30 * 60 * 1000
+        elif granularity == "1H":
+            return 3600 * 1000
+        elif granularity == "4H":
+            return 4 * 3600 * 1000
+        elif granularity == "12H":
+            return 12 * 3600 * 1000
+        elif granularity == "1D":
+            return 24 * 3600 * 1000
+        elif granularity == "1W":
+            return 7 * 24 * 3600 * 1000
+        elif granularity == "1MO":
+            return 30 * 24 * 3600 * 1000
+        else:
+            raise ValueError(f"Unsupported granularity: {granularity}")   
+
+    async def get_candlestick_chart(self, symbol: str, granularity: str, start_time: int = None, end_time: int = None) -> np.ndarray:
+            final_result = np.empty((0, 7))
+            base_url = 'https://api.bitget.com/api/v2/mix/market/candles'
+            params = {
+                'symbol': symbol,
+                'granularity': granularity,
+                'productType': 'USDT-FUTURES',
+                'limit': 1000
+            }
+
+            # Get how many times do I need to call the API
+            granularity_ms = self.convert_granularity_to_ms(granularity)
+            api_calls = self.calculate_api_calls(start_time, end_time, granularity_ms)
+            # total_candles = (end_time - start_time) // granularity_ms
+       
+            
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        data = result.get("data", [])
-                        
-                        if not data:
-                            print("No data returned from the API.")
-                            return np.array([])
+                for i, call in enumerate(api_calls):
+                    if start_time:
+                        params['startTime'] = str(call['start_time'])
+                    if end_time:
+                        params['endTime'] = str(call['end_time'])
 
-                        # Convert the data to a NumPy array with timezone conversion using pytz
-                        utc = pytz.utc
-                        amsterdam_tz = pytz.timezone('Europe/Amsterdam')
-                        
-                        np_data = np.array([
-                            [
-                                utc.localize(datetime.utcfromtimestamp(int(item[0]) / 1000)).astimezone(amsterdam_tz).timestamp(),  # Convert to Amsterdam timezone
-                                float(item[1]),  # open price
-                                float(item[2]),  # high price
-                                float(item[3]),  # low price
-                                float(item[4]),  # close price
-                                float(item[5])   # volume in base currency
-                            ]
-                            for item in data if isinstance(item, list) and len(item) >= 6  # Ensure valid format
-                        ])
-                        return np_data
-                    else:
-                        print(f"Error fetching candlestick data: {response.status}")
-                        print("error response -> ",response)
-                        return np.array([])
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return np.array([])
+                    async with session.get(base_url, params=params) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            data = result.get("data", [])
+
+                            if not data:
+                                print(f"there wasn't data in attempt {i}")
+                                break
+
+                            np_data = np.array([
+                                [
+                                    int(item[0]),    # The timestamp in milliseconds
+                                    float(item[1]),  # Open price
+                                    float(item[2]),  # High price
+                                    float(item[3]),  # Low price
+                                    float(item[4]),  # Close price
+                                    float(item[5]),  # Volume (traded amount in the base currency)
+                                    float(item[6])   # Notional value (the total traded value in quote currency)
+                                ]
+                                for item in data
+                            ], dtype=object)
+
+                            final_result = np.vstack([final_result, np_data])
+
+                            last_timestamp = int(data[-1][0])
+
+                            # If the last fetched timestamp reaches or exceeds the requested end_time, stop fetching data
+                            if end_time and last_timestamp >= end_time:
+                                break
+
+                            # Update startTime to last_timestamp + 1 to continue fetching the next 1000 candles
+                            params['startTime'] = str(last_timestamp + 1)
+
+                        else:
+                            print(f"Error fetching candlestick data: {response.status}")
+                            break
+
+            return final_result
 
     async def get_1min_candlestick_chart(self, symbol: str, startTime: int, endTime: int) -> np.ndarray:
         url = "https://api.bitget.com/api/v2/spot/market/candles"
@@ -249,7 +326,35 @@ class BitgetClient:
 
 
     
+    async def get_market_cap(self, symbol: str):
+        """Retrieve the market capitalization for a given cryptocurrency symbol using CoinMarketCap API."""
+        base_url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
+        headers = {
+            "X-CMC_PRO_API_KEY": COINMARKETCAP_APIKEY,
+            "Accept": "application/json"
+        }
 
+        if symbol.lower().endswith('usdt'):
+            symbol = symbol[:-4]
+        
+        params = {
+            "symbol": symbol,
+            "convert": "USD"
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(base_url, headers=headers, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    try:
+                        market_cap = data['data'][symbol]['quote']['USD']['market_cap']
+                        return market_cap
+                    except KeyError:
+                        print(f"Market cap not found for symbol: {symbol}")
+                        return None
+                else:
+                    print(f"Error fetching market cap data: {response.status}")
+                    return None
 
 
     async def get_historical_funding_rate(self, symbol: str):
@@ -293,29 +398,32 @@ class BitgetClient:
             return []
 
 
+    @property
+    def api_timezone(self):
+        return self._api_timezone
+
 
 async def main_testing():
-    # Initialize BitgetClient
-    bitget_client = BitgetClient()
+    bitget_layer = BitgetClient() 
+    start_time = int(datetime(2024, 10, 6, 10).timestamp() * 1000)  
+    end_time = int(datetime.now(pytz.utc).timestamp() * 1000)  
+   
+    granularity = '1m'  
 
-    # Define your variables
-    symbol = 'BTCUSDT'  # Example symbol
-    period_unix_timetamp = 1725785100  # Example Unix timestamp in seconds
-    short_period = 10  # Example short period in minutes
+    mk = await bitget_layer.get_market_cap('BTCUSDT')
+    print("marketcap ->", mk)
 
-    # Convert to Unix timestamp in milliseconds
-    dt = datetime.fromtimestamp(period_unix_timetamp, tz=dttimezone.utc)
-    start_time10 = int((dt - timedelta(minutes=1)).timestamp() * 1000); print("start time -> ", start_time10)
-    end_timeX = int((dt + timedelta(minutes=short_period)).timestamp() * 1000); print("End time -> ", end_timeX)
+    """
+    res = await bitget_layer.get_candlestick_chart('BTCUSDT', granularity, start_time, end_time)
+    print(res)
+    print("length -> ", len(res))
 
-    # Call the get_1min_candlestick_chart function with the calculated timestamps
-    cdle_X_min = await bitget_client.get_1min_candlestick_chart(symbol=symbol, startTime=start_time10, endTime=end_timeX)
+    df = pd.DataFrame(res, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'notional'])
+    df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df.to_csv('delete_this.csv', index=False)
+    """
 
-    # Print the result
-    print(cdle_X_min)
-
-
-
+    
 
 if __name__ == "__main__":
     asyncio.run(main_testing())

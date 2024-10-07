@@ -40,12 +40,12 @@ if [ "$response" == "y" ]; then
     # Build the application container
     docker build -t scheduler .
 
-    # Run the application container on the custom network and expose port 80
-    docker run -d -p 80:80 --name scheduler_v1 --network $network_name scheduler
+    # Run the application container on the custom network and expose port 8000
+    docker run -d -p 8000:8000 --name scheduler_v1 --network $network_name scheduler
 
     # Get relevant data
     ip=$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' scheduler_v1)
-    host_port=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "80/tcp") 0).HostPort}}' scheduler_v1)
+    host_port=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "8000/tcp") 0).HostPort}}' scheduler_v1)
     host=$(curl -s ifconfig.me)
 
     echo "----------------------------------------------------"

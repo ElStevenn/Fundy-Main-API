@@ -14,6 +14,10 @@ class UpdateGoogleOAuth(BaseModel):
     refresh_token: Optional[str] = Field(None, description="Updated refresh token")
     expires_at: Optional[datetime] = Field(None, description="Updated expiration datetime of the access token")
 
+class UpdateProfileUpdate(BaseModel):
+    name: Optional[str]
+    surname: Optional[str]
+    url_picture: Optional[str]
 
 class CreateHistoricalPNL(BaseModel):
     # Important Data
