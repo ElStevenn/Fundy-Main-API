@@ -3,7 +3,7 @@ from .models import *
 from sqlalchemy import select, update, insert, delete, join
 from functools import wraps
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError, DBAPIError
+from sqlalchemy.exc import IntegrityError, DBAPIError, NoResultFound
 from fastapi import HTTPException
 from typing import Optional
 from datetime import timedelta, datetime, timezone
@@ -28,9 +28,9 @@ def db_connection(func):
                 except IntegrityError as e:
                     await session.rollback()
                     raise HTTPException(status_code=400, detail=str(e))
-                # except DBAPIError as e:
-                #     await session.rollback()
-                #     raise HTTPException(status_code=500, detail="Database error, probably because the developer ")
+                except DBAPIError as e:
+                    await session.rollback()
+                    raise HTTPException(status_code=500, detail="Database error, probably because the developer ")
     return wrapper
 
 
@@ -292,8 +292,155 @@ async def get_users_sorted_by_joined_at(session: AsyncSession):
 
 
 
+# USER HISTORICAL SEARCH
+@db_connection
+async def add_new_searched_crypto(session: AsyncSession, user_id: str, symbol: str, name: str, picture_url: str):
+    try:
+        # Validate the user_id as a UUID
+        try:
+            uuid_obj = uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid UUID format for user_id: {user_id}")
+
+        # Fetch the number of existing records for the user
+        result = await session.execute(
+            select(HistoricalSearchedCryptos)
+            .where(HistoricalSearchedCryptos.user_id == uuid_obj)
+            .order_by(HistoricalSearchedCryptos.searchet_at.asc())  
+        )
+
+        cryptos = result.scalars().all()
+
+        # Check if the user already has 20 records
+        if len(cryptos) >= 20:
+            oldest_crypto = cryptos[0]
+            await session.delete(oldest_crypto)
+            await session.flush()  
+
+        # Dekete repeated crypto
+        for crypto in cryptos:
+            if crypto.searched_symbol == symbol:
+                await session.delete(crypto)
+                await session.flush()
+
+        # Add the new record
+        new_searched_crypto = HistoricalSearchedCryptos(
+            user_id=uuid_obj,
+            searched_symbol=symbol,
+            name=name,
+            picture_url=picture_url
+        )
+
+        session.add(new_searched_crypto)
+        await session.flush()
+        await session.refresh(new_searched_crypto)
+
+    except DBAPIError as e:
+        # Handle database-related errors
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@db_connection
+async def get_searched_cryptos(session: AsyncSession, user_id: str):
+    try:
+        # Validate the user_id as a UUID
+        try:
+            uuid_obj = uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid UUID format for user_id: {user_id}")
+
+        result = await session.execute(
+            select(HistoricalSearchedCryptos)
+            .where(HistoricalSearchedCryptos.user_id == uuid_obj)
+            .order_by(HistoricalSearchedCryptos.searchet_at.desc())
+        )
+        
+        cryptos = result.scalars().all()
+
+        if not cryptos:
+            return []
+
+        cryptos_data = [
+            {"id": crypto.id, "symbol": crypto.searched_symbol, "name": crypto.name, "picture_url": crypto.picture_url} 
+            for crypto in cryptos
+        ]
+
+        return cryptos_data
+
+    except DBAPIError as e:
+        # Handle database-related errors
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+@db_connection
+async def delete_searched_crypto(session: AsyncSession, id: str) -> None:
+    try:
+        # Validate if the id is a valid UUID
+        try:
+            uuid_obj = uuid.UUID(id) 
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid UUID format: {id}")
+
+        # Proceed with the query if the UUID is valid
+        result = await session.execute(
+            select(HistoricalSearchedCryptos)
+            .where(HistoricalSearchedCryptos.id == uuid_obj)
+        )
+        searched_crypto = result.scalar_one_or_none()
+
+        if not searched_crypto:
+            raise HTTPException(status_code=404, detail=f"Searched crypto with id {id} not found.")
+
+        await session.delete(searched_crypto)
+        await session.commit()
+
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Searched crypto with id {id} not found.")
+
+    except DBAPIError as e:
+        # Handle DB-related errors
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@db_connection
+async def set_new_public_key(session: AsyncSession, account_id: str, encrypted_apikey, encrypted_secret_key, encrypted_passphrase):
+    """Create or Update user credentials of Bitget"""
+    result = await session.execute(
+        select(UserCredentials).where(UserCredentials.account_id == account_id)
+    )
+    
+    user_credentials = result.scalars().first()
+
+    if user_credentials:
+        user_credentials.set_encrypted_apikey(encrypted_apikey)
+        user_credentials.set_encrypted_secret_key(encrypted_secret_key)
+        user_credentials.set_encrypted_passphrase(encrypted_passphrase)
+        operation = "updated"
+    else:
+        user_credentials = UserCredentials(
+            account_id=account_id,
+            encrypted_apikey=encrypted_apikey,
+            encrypted_secret_key=encrypted_secret_key,
+            encrypted_passphrase=encrypted_passphrase
+        )
+        session.add(user_credentials)
+        operation = "created"
+
+    # Commit the transaction
+    await session.commit()
+
+
+    return {"status": "success", "message": f"Credentials {operation} successfully.", "operation": operation}
+
+@db_connection
+async def get_account_credentials(session: AsyncSession):
+    pass
+
+
+
 async def main_tesings():
-    await get_joined_users(10)
+    # await add_new_searched_crypto("118c056f-e19e-4267-8a1d-68947ae08559", "BTCUSDT", "Bitcoin", "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/1200px-Bitcoin.svg.png")
+    # res = await get_searched_cryptos("118c056f-e19e-4267-8a1d-68947ae08559")
+    await delete_searched_crypto("lkdf")
+    # print(res)
 
 if __name__ == "__main__":
     asyncio.run(main_tesings())

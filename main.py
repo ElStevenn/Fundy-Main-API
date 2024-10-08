@@ -5,10 +5,12 @@
 from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Annotated
+from fastapi.responses import PlainTextResponse
+from typing import Annotated, List
 from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse, HTMLResponse
 from starlette.responses import RedirectResponse
+from cryptography.hazmat.primitives import serialization
 from datetime import datetime, timedelta
 from pytz import timezone
 import uuid, asyncio, schedule, os, time, threading, pytz, jwt, random
@@ -26,7 +28,7 @@ from app.google_service import get_credentials_from_code, get_google_flow
 from app.security import get_current_active_credentials_google, get_current_active_user, encode_session_token, get_current_credentials
 from app.database import crud
 from app.database import schemas as dbschemas
-from config import GOOGLE_CLIENT_ID, FRONTEND_IP
+from config import GOOGLE_CLIENT_ID, FRONTEND_IP, PUBLIC_KEY
 
 async_scheduler = ScheduleLayer("Europe/Amsterdam")
 
@@ -287,6 +289,46 @@ async def get_historical_founding_rate(symbol: str):
     historical_founding_rate = await bitget_client.get_historical_funding_rate(symbol)
     return historical_founding_rate
 
+@app.post("/new_searched_crypto", description="### Add new searched crypto\n\n - Needed parameter: **symbol**", tags=["SaaS"])
+async def save_new_crypto(
+    request_body: schemas.CryptoSearch,
+    user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)],
+    request: Request
+):
+    _, user_id = user_credentials
+
+    # Save searched cryptos
+    result = await crud.add_new_searched_crypto(
+        user_id=user_id,
+        symbol=request_body.symbol,
+        name=request_body.name,
+        picture_url=request_body.picture_url
+    )
+
+    return {"response": "crypto has been saved successfully"}
+
+
+@app.get("/get_last_searched_cryptos", response_model = List[schemas.CryptoSearch], description="### Get last searched cryptos from a user\n\n **Return:**\n\nList[\n\n - **symbol**\n\n - **name**\n\n - **picture_url**]", tags=["SaaS"])
+async def get_last_searched_cryptos(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request: Request):
+    _, user_id = user_credentials
+
+    # Get Searched Cryptos
+    result = await crud.get_searched_cryptos(user_id=user_id)
+
+    if result:
+        searched_cryptos = [
+            {
+                "symbol": b["symbol"],
+                "name": b["name"],
+                "picture_url": b["picture_url"]
+            }
+            for b in result
+        ]
+
+        return searched_cryptos
+    else:
+        return []
+
 @app.get("/get_random_faq", description="Get random phrase to put it in the FAQ part", tags=["SaaS"])
 async def get_radom_faq():
     return {"response": "under construction"}
@@ -298,8 +340,10 @@ async def get_user_profile(user_credentials: Annotated[tuple[dict, str], Depends
 
     return user_data
 
-@app.post("/set_user_configuration", description="### Update user configuration data:\n\n - **minimum_founding_rate**\n\n - **User Exchange**")
-async def update_user_configuration(request_body: schemas.UpdateUserConf):
+@app.post("/set_user_configuration", description="### Update user configuration data:\n\n - **minimum_founding_rate**\n\n - **User Exchange**", tags=["SaaS"])
+async def update_user_configuration(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_body: schemas.UpdateUserConf):
+    _, user_id = user_credentials
+
     return {}
 
 
@@ -345,6 +389,18 @@ async def start_rest_services():
 @app.delete("/stop_rest_services", description="Stop Each day tasks",tags=['Administrative Part'])
 async def stop_rest_services():
     return {}
+
+# Security
+@app.get("/security/get-public-key", description="### **GET PUBIC KEY**\n\n - Here is where you can get a public key to encrypt the **sensitive data**", tags=["Security"], response_class=PlainTextResponse)
+async def get_public_key():
+    # user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]
+    # _, user_id = user_credentials
+
+    pem_public_key = PUBLIC_KEY.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    return PlainTextResponse(pem_public_key.decode('utf-8'))
 
 if __name__ == "__main__":
     import uvicorn

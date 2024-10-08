@@ -36,6 +36,11 @@ class UpdateUserConf(BaseModel):
     minium_funding_rate_to_show: Optional[str] = None
     user_exchange: Optional[str] = None
 
+class CryptoSearch(BaseModel):
+    symbol: str
+    name: str
+    picture_url: str
+
 # CRYPTO SCHEDULE
 class CryptoAlertTask(BaseTask):
     asset: str
@@ -60,3 +65,4 @@ class OpenOrderTest(BaseModel):
     mode: Literal['long', 'short']
     open_order_in: int
     close_order_in: int
+

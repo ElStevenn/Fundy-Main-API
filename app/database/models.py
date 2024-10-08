@@ -1,6 +1,10 @@
-from sqlalchemy import String, Float, DateTime, Text, ForeignKey, JSON, BIGINT, Column, func, Integer, Numeric, INT
+from sqlalchemy import String, Float, DateTime, Text, ForeignKey, JSON, BIGINT, Column, func, Integer, Numeric, INT, LargeBinary
 from sqlalchemy.dialects.postgresql import UUID as pgUUID
 from sqlalchemy.orm import relationship, declarative_base
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import hashes
+from config import PRIVATE_KEY
 import uuid
 
 Base = declarative_base()
@@ -22,6 +26,7 @@ class Users(Base):
     google_oauths = relationship("GoogleOAuth", back_populates="user", cascade="all, delete-orphan")
     user_configurations = relationship("UserConfiguration", back_populates="user", cascade="all, delete-orphan")
     monthly_subscriptions = relationship("MonthlySubscription", back_populates="user", cascade="all, delete-orphan")
+    historical_searched_cryptos = relationship("HistoricalSearchedCryptos", back_populates="user", cascade="all, delete-orphan")
 
 class GoogleOAuth(Base):
     __tablename__ = "google_oauth"
@@ -68,8 +73,9 @@ class Account(Base):
     email = Column(String(255))
     user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
 
-    # One-to-many relationship with Historical_PNL
+    # One-to-many Historical_PNL as UserCredentials
     historical_pnls = relationship("Historical_PNL", back_populates="account", cascade="all, delete-orphan")
+    user_credentials = relationship("UserCredentials", back_populates="account", cascade="all, delete-orphan")
 
     # Many-to-one relationship with Users
     user = relationship("Users", back_populates="accounts")
@@ -87,8 +93,67 @@ class Historical_PNL(Base):
     closed_value = Column(Float, nullable=False)
     account_id = Column(String(255), ForeignKey('accounts.id'), nullable=False)
 
-    # Many-to-one relationship with Account
     account = relationship("Account", back_populates="historical_pnls")
+
+
+class UserCredentials(Base):
+    __tablename__ = "user_credentials"
+
+    id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    account_id = Column(String(255), ForeignKey('accounts.id'), nullable=False)
+    encrypted_apikey = Column(LargeBinary, nullable=False)
+    encrypted_secret_key = Column(LargeBinary, nullable=False)
+    encrypted_passphrase = Column(LargeBinary, nullable=False)
+
+    account = relationship("Account", back_populates="user_credentials")
+
+    # Store the already encrypted API key
+    def set_encrypted_apikey(self, encrypted_apikey):
+        self.encrypted_apikey = encrypted_apikey
+
+    # Store the already encrypted secret key
+    def set_encrypted_secret_key(self, encrypted_secret_key):
+        self.encrypted_secret_key = encrypted_secret_key
+
+    # Store the already encrypted passphrase
+    def set_encrypted_passphrase(self, encrypted_passphrase):
+        self.encrypted_passphrase = encrypted_passphrase
+
+    # Decrypt the API key using the private RSA key
+    def get_apikey(self):
+        decrypted_apikey = PRIVATE_KEY.decrypt(
+            self.encrypted_apikey,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        return decrypted_apikey.decode('utf-8')
+
+    # Decrypt the secret key using the private RSA key
+    def get_secret_key(self):
+        decrypted_secret_key = PRIVATE_KEY.decrypt(
+            self.encrypted_secret_key,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        return decrypted_secret_key.decode('utf-8')
+
+    # Decrypt the passphrase using the private RSA key
+    def get_passphrase(self):
+        decrypted_passphrase = PRIVATE_KEY.decrypt(
+            self.encrypted_passphrase,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        return decrypted_passphrase.decode('utf-8')
 
 
 # CRYPTO MODELS
@@ -111,13 +176,23 @@ class CryptoHistoricalPNL(Base):
     avg_close_price = Column(Numeric, nullable=False)
     percentage_earning = Column(String(255))
 
-
     crypto = relationship("FutureCryptos", back_populates="crypto_historical_pnl")
 
 
+# USER HISTORICAL
+class HistoricalSearchedCryptos(Base):
+    __tablename__ = "historical_searched_cryptos"
 
+    id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    searched_symbol = Column(Text)
+    name = Column(Text)
+    picture_url = Column(Text)
+    searchet_at = Column(DateTime(timezone=True), default=func.now())
 
+    user = relationship("Users", back_populates="historical_searched_cryptos")
 
+    
 
 # MIGRATE MODEL
 """
@@ -128,4 +203,10 @@ class CryptoHistoricalPNL(Base):
 
   ../../venv/bin/alembic upgrade head
   ../../venv/bin/alembic revision --autogenerate -m "Updated models"
+
+  | 
+
+  ../../venv/bin/python ../../venv/bin/alembic upgrade head
+  ../../venv/bin/python ../../venv/bin/alembic revision --autogenerate -m "Updated models"
+
 """

@@ -2,12 +2,13 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException, Depends
 from contextlib import asynccontextmanager
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from cryptography.fernet import Fernet
 from typing import Annotated
 from uuid import UUID
 import jwt
 
 from app.database.crud import get_google_credentials
-from config import JWT_SECRET_KEY
+from config import JWT_SECRET_KEY, PRIVATE_KEY, PUBLIC_KEY
 
 
 
@@ -39,7 +40,7 @@ def decode_session_token(token: str):
             )
     except jwt.InvalidTokenError:
         raise HTTPException(
-            status_code=400,
+            status_code=401,
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"}  
         )
@@ -65,3 +66,25 @@ async def get_current_active_credentials_google(
     ):
     credentials, user_id = current_user_credentials  
     return user_id, credentials
+
+
+"""
+ - - -  ENCRYPTION - - -
+"""
+
+"""
+cipher_suite = Fernet(PRIVATE_KEY)
+
+def encrypt_data(plain_text):
+    encrypted_data = cipher_suite.encrypt(plain_text.encode('utf-8'))
+    return encrypted_data
+
+def decrypt_data(encrypted_data):
+    decrypted_data = cipher_suite.decrypt(encrypted_data).decode('utf-8')
+    return decrypted_data
+
+
+if __name__ == "__main__":
+    # Example usage
+    text = "my-text123"
+"""
