@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: database-deployment
+  labels:
+    app: postgres
+spec:
+  replicas: 1 # Since it's a small application, using 1 replica
+
+  selector:
+    matchLabels: # This matches the labels in the pod template and will be used by the Service
+      app: postgres
+
+  template:
+    metadata: # Fixed typo here (was 'meatadata')
+      labels:
+        app: postgres # Label applied to the Pods managed by this Deployment
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:latest
+        ports:
+        - containerPort: 5432

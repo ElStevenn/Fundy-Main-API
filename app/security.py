@@ -2,10 +2,11 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException, Depends
 from contextlib import asynccontextmanager
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 from typing import Annotated
 from uuid import UUID
-import jwt
+import jwt, base64
 
 from app.database.crud import get_google_credentials
 from config import JWT_SECRET_KEY, PRIVATE_KEY, PUBLIC_KEY
@@ -72,19 +73,37 @@ async def get_current_active_credentials_google(
  - - -  ENCRYPTION - - -
 """
 
-"""
-cipher_suite = Fernet(PRIVATE_KEY)
 
-def encrypt_data(plain_text):
-    encrypted_data = cipher_suite.encrypt(plain_text.encode('utf-8'))
-    return encrypted_data
+def encrypt_data(plain_text: str) -> str:
+    encrypted = PUBLIC_KEY.encrypt(
+        plain_text.encode(),
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return base64.b64encode(encrypted).decode('utf-8')
 
-def decrypt_data(encrypted_data):
-    decrypted_data = cipher_suite.decrypt(encrypted_data).decode('utf-8')
-    return decrypted_data
+def decrypt_data(encrypted_data: str) -> str:
+    decrypted = PRIVATE_KEY.decrypt(
+        base64.b64decode(encrypted_data.encode('utf-8')),
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return decrypted.decode('utf-8')
 
 
+
+# Example usage
 if __name__ == "__main__":
-    # Example usage
     text = "my-text123"
-"""
+    encrypted_text = encrypt_data(text)
+    print("Encrypted:", encrypted_text)
+
+    decrypted_text = decrypt_data(encrypted_text)
+    print("Decrypted:", decrypted_text)
+

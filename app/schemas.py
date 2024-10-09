@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, EmailStr
 from typing import Dict, Any, Optional, List, Union, Literal, Self
 from datetime import datetime
 import uuid
@@ -50,6 +50,30 @@ class CryptoAlertTask(BaseTask):
 class WholeConfiguration(BaseTask):
     default_time_zone: Optional[str]
 
+class UserCredentials(BaseModel):
+    encrypted_apikey: bytes = Field(..., alias='encrypted_apikey')
+    encrypted_secret_key: bytes = Field(..., alias='encrypted_secret_key')
+    encrypted_passphrase: bytes = Field(..., alias='encrypted_passphrase')
+
+    # Custom setters to convert from bytes to string
+    @classmethod
+    def from_strings(cls, encrypted_apikey: str, encrypted_secret_key: str, encrypted_passphrase: str) -> 'UserCredentials':
+        return cls(
+            encrypted_apikey=encrypted_apikey.encode('utf-8'),  
+            encrypted_secret_key=encrypted_secret_key.encode('utf-8'),  
+            encrypted_passphrase=encrypted_passphrase.encode('utf-8')  
+        )
+
+    # Optionally, if you need to retrieve as strings
+    def to_strings(self) -> dict[str, str]:
+        return {
+            'encrypted_apikey': self.encrypted_apikey.decode('utf-8'),
+            'encrypted_secret_key': self.encrypted_secret_key.decode('utf-8'),
+            'encrypted_passphrase': self.encrypted_passphrase.decode('utf-8'),
+        }
+class UserAccount(BaseModel):
+    type: str
+    email: str
 
 # RETURN SCHEMAS
 class Return_SON(BaseModel):
@@ -58,6 +82,18 @@ class Return_SON(BaseModel):
     message: str
     timezone: str
 
+class UserResponse(BaseModel):
+    user_id: uuid.UUID
+    username: str | None
+    name: str | None
+    surname: str | None
+    email: EmailStr | None
+    url_picture: str | None
+    role: str 
+    joined_at: datetime | None
+
+    class Config:
+        orm_mode = True
 
 # DELETE THIS
 class OpenOrderTest(BaseModel):

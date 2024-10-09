@@ -68,10 +68,10 @@ class MonthlySubscription(Base):
 class Account(Base):
     __tablename__ = "accounts"
 
-    id = Column(String(255), primary_key=True)
+    id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
     type = Column(String(255))
     email = Column(String(255))
-    user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
 
     # One-to-many Historical_PNL as UserCredentials
     historical_pnls = relationship("Historical_PNL", back_populates="account", cascade="all, delete-orphan")
@@ -91,7 +91,7 @@ class Historical_PNL(Base):
     opening_fee = Column(Float)
     closing_fee = Column(Float)
     closed_value = Column(Float, nullable=False)
-    account_id = Column(String(255), ForeignKey('accounts.id'), nullable=False)
+    account_id = Column(pgUUID(as_uuid=True), ForeignKey('accounts.id'), nullable=False)
 
     account = relationship("Account", back_populates="historical_pnls")
 
@@ -100,7 +100,7 @@ class UserCredentials(Base):
     __tablename__ = "user_credentials"
 
     id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    account_id = Column(String(255), ForeignKey('accounts.id'), nullable=False)
+    account_id = Column(pgUUID(as_uuid=True), ForeignKey('accounts.id'), nullable=False)
     encrypted_apikey = Column(LargeBinary, nullable=False)
     encrypted_secret_key = Column(LargeBinary, nullable=False)
     encrypted_passphrase = Column(LargeBinary, nullable=False)

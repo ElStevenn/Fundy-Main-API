@@ -2,7 +2,7 @@
 # Author: Pau Mateu
 # Developer email: paumat17@gmail.com
 
-from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Depends
+from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Depends, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Cuck Main API",
+    title="Leverage's Main API",
     description=(
         "This API provides services related to cryptocurrency funding rates and user management. "
         "It integrates with third-party platforms like Google for OAuth2 authentication and allows for tracking cryptocurrency funding rates.\n\n"
@@ -87,7 +87,7 @@ app = FastAPI(
         "- **Administrative Control**: Start and stop services related to funding rates and get information about joined users.\n\n"
         
         "### Summary:\n"
-        "The Cuck Main API is a powerful tool for managing cryptocurrency funding rates, user authentication, and profile management, "
+        "Leverage's Main API is a powerful tool for managing cryptocurrency funding rates, user authentication, and profile management, "
         "with integrations for real-time data and third-party authentication services."
     ),
     lifespan=lifespan,
@@ -346,9 +346,42 @@ async def update_user_configuration(user_credentials: Annotated[tuple[dict, str]
 
     return {}
 
+@app.post("/set_userkeys", description="### Set user keys to use the exchange \n\n**Required data:**\n\n - Encrypted Apikey\n\n - Encrypted Secret Key\n\n - ", tags=["SaaS"])
+async def set_user_credentials(request_body: schemas.UserCredentials, user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
+    _, user_id = user_credentials
+
+    response = await crud.set_new_user_credentials(user_id, encrypted_apikey=request_body.encrypted_apikey, encrypted_secret_key=request_body.encrypted_secret_key, encrypted_passphrase=request_body.encrypted_passphrase)
+
+    return response
+
+@app.post("/create_new_account", description="### Create a new account for the user\n\n**Required data:**\n\n - Account Type\n\n - Email\n\n", tags=["SaaS"])
+async def create_new_account(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_boddy: schemas.UserAccount):
+    _, user_id = user_credentials
+
+    response = await crud.create_new_account(user_id=user_id, email=request_boddy.email, type=request_boddy.type)
+
+    return response
+
+@app.get("/get_user_accounts",description="### Get list of accounts from a user\n\nIf user doesn't have any account, it'll return a void array ", tags=["SaaS"], response_model=List[dict])
+async def get_user_accounts(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
+    _, user_id = user_credentials
+
+    user_accounts = await crud.get_list_id_accounts(user_id=user_id)
+
+    return user_accounts
+
+@app.get("/get_scheduled_cryptos", description="### See how many cryptos are opened or scheduled to be opened or closed (detailed data)", tags=["SaaS"])
+async def get_scheduled_cryptos():
+    return {"response": "under construction until the bot will work properly :)"}
+
+
+"""
+ - - - ADMINISTRATIVE PART - - - 
+"""
 
 @app.delete("/founding_rate_service/stop", description="", tags=['Administrative Part'])
 async def stop_founding_rate_service():
+
     """Stop the Founding Rate Service."""
 
     if founding_rate_service.status == "stopped":
@@ -360,9 +393,19 @@ async def stop_founding_rate_service():
 
     return {"status": "Service stopped"}
 
-@app.get("/get_joined_users", description="Get a list with recent users joined into this plataform", tags=['Administrative Part'])
-async def get_joined_uers(limit: int):
-    return {}
+@app.get("/get_joined_users/{user_id}", description="Get a list with recent users joined into this plataform", tags=['Administrative Part'], response_model=List[schemas.UserResponse]) # 
+async def get_joined_uers(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], limit: int):
+    _, user_id = user_credentials
+
+    # Check if user has enought privilleges
+    user = await crud.get_user_profile(user_id=user_id)
+
+    if not user["role"] == "admin" and not user["role"] == "mod":
+        return HTTPException(status_code=401, detail="You don't have enought permissions to do this")
+
+    # Get joined users
+    users = await crud.get_joined_users(limit)
+    return users
 
 @app.get("/founding_rate_service/status", description="", tags=['Administrative Part'])
 async def see_founding_rate_service():
@@ -377,10 +420,6 @@ async def next_exec_time():
         raise HTTPException(status_code=403, detail="The service is not running, please start the service before")
     
     return {"result": nex_exec_time}
-
-@app.get("/get_scheduled_cryptos", description="See what cryptos are in the crosshairs")
-async def get_scheduled_cryptos():
-    return {}
 
 @app.post("/start_rest_sercies", description="Start Other services such as get all the cryptos an see if there are new crytpos or cryptos thare beeing deleted, among other services", tags=['Administrative Part'])
 async def start_rest_services():

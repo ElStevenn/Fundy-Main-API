@@ -28,9 +28,9 @@ def db_connection(func):
                 except IntegrityError as e:
                     await session.rollback()
                     raise HTTPException(status_code=400, detail=str(e))
-                except DBAPIError as e:
-                    await session.rollback()
-                    raise HTTPException(status_code=500, detail="Database error, probably because the developer ")
+                # except DBAPIError as e:
+                #     await session.rollback()
+                #     raise HTTPException(status_code=400, detail="There is probably a wrong data type")
     return wrapper
 
 
@@ -104,7 +104,26 @@ async def check_if_user_exists(session: AsyncSession, email: str):
             "surname": user.surname,
             "email": user.email,
         }
-    
+
+@db_connection
+async def get_all_joined_users(session: AsyncSession):
+    result = await session.execute(
+        select(Users)
+    )
+
+    all_users = result.scalars().all()
+
+    if not all_users:
+        return {}
+    else:
+        registered_users = [
+            {"user_id": user.id, "username": user.username, "name": user.name, "surname": user.surname, "email": user.email, "url_picture": user.url_picture, "role": user.role}
+            for user in all_users
+        ]
+
+        return registered_users
+
+
 
 @db_connection
 async def delete_account_cascade(session: AsyncSession, email: str, account_type: str):
@@ -247,7 +266,8 @@ async def get_user_profile(session: AsyncSession, user_id) -> dict:
             "name": user.name,
             "surname": user.surname,
             "email": user.email,
-            "url_picture": user.url_picture
+            "url_picture": user.url_picture,
+            "role": user.role
         }
     else:
         raise HTTPException(status_code=404, detail="User not found")
@@ -272,13 +292,19 @@ async def update_profile(session: AsyncSession, email: str, user_update: UpdateP
 
 @db_connection
 async def get_joined_users(session: AsyncSession, limit: int):
-    """Get all joined users on this platform"""
+    """Get all joined users on this platform (administrative function)"""
     result = await session.execute(
         select(Users).order_by(Users.joined_at.desc()).limit(limit)
     )
     users = result.scalars().all()
     
-    return users
+    joined_users = [
+        {"user_id": user.id, "username": user.username, "name": user.name, "surname": user.surname, "email": user.email, "url_picture": user.url_picture, "role": user.role, "joined_at": user.joined_at}
+
+        for user in users
+    ]
+
+    return joined_users
 
         
 # USER CONFIGURATION TABLE
@@ -399,9 +425,17 @@ async def delete_searched_crypto(session: AsyncSession, id: str) -> None:
         # Handle DB-related errors
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
+@db_connection
+async def create_new_account(session: AsyncSession, user_id, email: str, type: str):
+    """Creates a new account"""
+    
+    new_account = Account(type=type, email=email, user_id=user_id)
+    session.add(new_account)
+    await session.commit()
+
 
 @db_connection
-async def set_new_public_key(session: AsyncSession, account_id: str, encrypted_apikey, encrypted_secret_key, encrypted_passphrase):
+async def set_new_user_credentials(session: AsyncSession, account_id: str, encrypted_apikey, encrypted_secret_key, encrypted_passphrase):
     """Create or Update user credentials of Bitget"""
     result = await session.execute(
         select(UserCredentials).where(UserCredentials.account_id == account_id)
@@ -431,6 +465,42 @@ async def set_new_public_key(session: AsyncSession, account_id: str, encrypted_a
     return {"status": "success", "message": f"Credentials {operation} successfully.", "operation": operation}
 
 @db_connection
+async def get_list_id_accounts(session: AsyncSession, user_id: str):
+    """Get all accounts for a given user_id"""
+
+  
+    try:
+        user_uuid = uuid.UUID(user_id)  
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid user_id: {user_id}")
+
+    try:
+        # Perform the query to fetch accounts by user_id
+        result = await session.execute(
+            select(Account).where(Account.user_id == user_uuid)
+        )
+        accounts = result.scalars().all()
+
+        # If no accounts found, raise a 404 error
+        if not accounts:
+            raise HTTPException(status_code=404, detail=f"No accounts found for user_id: {user_id}")
+
+        # Format the results as a list of dictionaries
+        account_data = [
+            {"account_id": acc.id, "type": acc.type, "email": acc.email} 
+            for acc in accounts
+        ]
+
+        return account_data
+
+    except Exception as e:
+        # Raise a detailed error message for debugging
+        raise HTTPException(status_code=404, detail=str(e))
+
+  
+    
+
+@db_connection
 async def get_account_credentials(session: AsyncSession):
     pass
 
@@ -438,9 +508,8 @@ async def get_account_credentials(session: AsyncSession):
 
 async def main_tesings():
     # await add_new_searched_crypto("118c056f-e19e-4267-8a1d-68947ae08559", "BTCUSDT", "Bitcoin", "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Bitcoin.svg/1200px-Bitcoin.svg.png")
-    # res = await get_searched_cryptos("118c056f-e19e-4267-8a1d-68947ae08559")
-    await delete_searched_crypto("lkdf")
-    # print(res)
+    res = await get_list_id_accounts("4e21db51-0e4d-47e2-bfc0-15ad00cb6c61")
+    print("pretty result -> ",res)
 
 if __name__ == "__main__":
     asyncio.run(main_tesings())
