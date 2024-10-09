@@ -51,17 +51,18 @@ class WholeConfiguration(BaseTask):
     default_time_zone: Optional[str]
 
 class UserCredentials(BaseModel):
+    account_id: str
     encrypted_apikey: bytes = Field(..., alias='encrypted_apikey')
-    encrypted_secret_key: bytes = Field(..., alias='encrypted_secret_key')
+    encrypted_secret_key: bytes = Field(..., alias='encrypted_secret_key') 
     encrypted_passphrase: bytes = Field(..., alias='encrypted_passphrase')
 
     # Custom setters to convert from bytes to string
     @classmethod
     def from_strings(cls, encrypted_apikey: str, encrypted_secret_key: str, encrypted_passphrase: str) -> 'UserCredentials':
         return cls(
-            encrypted_apikey=encrypted_apikey.encode('utf-8'),  
-            encrypted_secret_key=encrypted_secret_key.encode('utf-8'),  
-            encrypted_passphrase=encrypted_passphrase.encode('utf-8')  
+            encrypted_apikey=encrypted_apikey.encode('utf-8'),
+            encrypted_secret_key=encrypted_secret_key.encode('utf-8'),
+            encrypted_passphrase=encrypted_passphrase.encode('utf-8')
         )
 
     # Optionally, if you need to retrieve as strings
@@ -71,6 +72,7 @@ class UserCredentials(BaseModel):
             'encrypted_secret_key': self.encrypted_secret_key.decode('utf-8'),
             'encrypted_passphrase': self.encrypted_passphrase.decode('utf-8'),
         }
+    
 class UserAccount(BaseModel):
     type: str
     email: str

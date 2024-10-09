@@ -347,10 +347,11 @@ async def update_user_configuration(user_credentials: Annotated[tuple[dict, str]
     return {}
 
 @app.post("/set_userkeys", description="### Set user keys to use the exchange \n\n**Required data:**\n\n - Encrypted Apikey\n\n - Encrypted Secret Key\n\n - ", tags=["SaaS"])
-async def set_user_credentials(request_body: schemas.UserCredentials, user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
-    _, user_id = user_credentials
+async def set_user_credentials(request_body: schemas.UserCredentials):
+    # user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]
+    # _, user_id = user_credentials
 
-    response = await crud.set_new_user_credentials(user_id, encrypted_apikey=request_body.encrypted_apikey, encrypted_secret_key=request_body.encrypted_secret_key, encrypted_passphrase=request_body.encrypted_passphrase)
+    response = await crud.set_new_user_credentials(account_id=request_body.account_id, encrypted_apikey=request_body.encrypted_apikey, encrypted_secret_key=request_body.encrypted_secret_key, encrypted_passphrase=request_body.encrypted_passphrase)
 
     return response
 
@@ -430,16 +431,30 @@ async def stop_rest_services():
     return {}
 
 # Security
-@app.get("/security/get-public-key", description="### **GET PUBIC KEY**\n\n - Here is where you can get a public key to encrypt the **sensitive data**", tags=["Security"], response_class=PlainTextResponse)
-async def get_public_key():
-    # user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]
-    # _, user_id = user_credentials
+@app.get(
+    "/security/get-public-key",
+    description="""
+    ### **GET PUBLIC KEY**
 
+    This endpoint provides the RSA public key that can be used by clients (such as frontend applications) to **encrypt sensitive data** before sending it to the server.
+
+    #### Encryption Details:
+
+    - **Algorithm**: RSA (Rivest-Shamir-Adleman)
+    - **Padding Scheme**: OAEP (Optimal Asymmetric Encryption Padding)
+    - **Hashing Algorithm for OAEP**: SHA-256
+    - **Public Key Format**: PEM (Privacy-Enhanced Mail) - Base64 encoded
+    """,
+    tags=["Security"],
+    response_class=PlainTextResponse
+)
+async def get_public_key():
     pem_public_key = PUBLIC_KEY.public_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
     return PlainTextResponse(pem_public_key.decode('utf-8'))
+
 
 if __name__ == "__main__":
     import uvicorn

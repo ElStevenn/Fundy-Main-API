@@ -4,6 +4,8 @@ from sqlalchemy import select, update, insert, delete, join
 from functools import wraps
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError, DBAPIError, NoResultFound
+from sqlalchemy import cast
+from sqlalchemy.dialects.postgresql import UUID
 from fastapi import HTTPException
 from typing import Optional
 from datetime import timedelta, datetime, timezone
@@ -436,9 +438,17 @@ async def create_new_account(session: AsyncSession, user_id, email: str, type: s
 
 @db_connection
 async def set_new_user_credentials(session: AsyncSession, account_id: str, encrypted_apikey, encrypted_secret_key, encrypted_passphrase):
-    """Create or Update user credentials of Bitget"""
+    """Create or Update user credentials for Bitget"""
+    
+    # Ensure account_id is a valid UUID string
+    try:
+        uuid_account_id = uuid.UUID(account_id)  # Convert to UUID for comparison
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid UUID format: {account_id}")
+    
+    # Query with explicit casting to UUID
     result = await session.execute(
-        select(UserCredentials).where(UserCredentials.account_id == account_id)
+        select(UserCredentials).where(cast(UserCredentials.account_id, UUID) == uuid_account_id)
     )
     
     user_credentials = result.scalars().first()
@@ -450,7 +460,7 @@ async def set_new_user_credentials(session: AsyncSession, account_id: str, encry
         operation = "updated"
     else:
         user_credentials = UserCredentials(
-            account_id=account_id,
+            account_id=uuid_account_id,
             encrypted_apikey=encrypted_apikey,
             encrypted_secret_key=encrypted_secret_key,
             encrypted_passphrase=encrypted_passphrase
@@ -461,8 +471,8 @@ async def set_new_user_credentials(session: AsyncSession, account_id: str, encry
     # Commit the transaction
     await session.commit()
 
-
     return {"status": "success", "message": f"Credentials {operation} successfully.", "operation": operation}
+
 
 @db_connection
 async def get_list_id_accounts(session: AsyncSession, user_id: str):
