@@ -4,7 +4,7 @@
 
 import pandas as pd
 import numpy as np
-from typing import Literal
+from typing import Literal, Tuple
 from datetime import datetime
 from scipy.signal import argrelextrema
 import pytz, asyncio
@@ -16,10 +16,11 @@ class BotChartAnalysis():
     """
     Analysis if funding rate is more than 1.3
     """
-    def __init__(self, symbol: str, current_funding_rate: float, last_fr_exec_time: int):
+    def __init__(self, symbol: str, current_funding_rate: float, last_fr_exec_time: int, frequency = 8):
         self.symbol = symbol
         self.current_funding_rate = current_funding_rate
         self.last_fr_exec_time = last_fr_exec_time
+        self.frequency = frequency
         self.volatility_weight = None
         self.bitget_service = BitgetClient()
         self.api_timezone = pytz.utc
@@ -118,9 +119,50 @@ class BotChartAnalysis():
 
         return df
 
+
+    async def get_double_df(self, period: Literal['8h', '10m', '1m']) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Get the detailded dataframe of the last funding rate period, And then also pre-last funding rate"""
+        if period == '8h':
+            df1_start_time = self.last_fr_exec_time
+            df1_end_time = int(datetime.now(pytz.utc).timestamp() * 1000)
+            granularity = '15m'
+            df2_start_time = self.last_fr_exec_time - (self.frequency * 60 * 60 * 1000)
+            df2_end_time = self.last_fr_exec_time - (1 * 60 * 1000)      
+        elif period == '10m':
+            df1_start_time = self.last_fr_exec_time 
+            df1_end_time = self.last_fr_exec_time + (10 * 60 * 1000)
+            granularity = '1m'
+            df2_start_time = self.last_fr_exec_time - (self.frequency * 60 * 60 * 1000)
+            df2_end_time = df2_start_time + (10 * 60 * 1000)
+        elif period == '1m':
+            df1_start_time = self.last_fr_exec_time - (1 * 60 * 1000)
+            df1_end_time = self.last_fr_exec_time + (1 * 60 * 1000)
+            granularity = '1m'
+            df2_start_time = self.last_fr_exec_time - (self.frequency * 60 * 60 * 1000) - (1 * 60 * 1000)
+            df2_end_time = df2_start_time + (2 * 60 * 1000)
+
+        # Fetch the first candlestick chart and create a DataFrame
+        df1_chart = await self.bitget_service.get_candlestick_chart(
+            self.symbol, granularity, start_time=df1_start_time, end_time=df1_end_time
+        )
+        df1 = pd.DataFrame(df1_chart, columns=['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume', 'National_Value'])
+        df1['Timestamp'] = pd.to_datetime(df1['Timestamp'], unit='ms')
+        df1.set_index('Timestamp', inplace=True)
+        
+        # Fetch the second candlestick chart and create a DataFrame
+        df2_chart = await self.bitget_service.get_candlestick_chart(
+            self.symbol, granularity, start_time=df2_start_time, end_time=df2_end_time
+        )
+        df2 = pd.DataFrame(df2_chart, columns=['Timestamp', 'Open', 'High', 'Low', 'Close', 'Volume', 'National_Value'])
+        df2['Timestamp'] = pd.to_datetime(df2['Timestamp'], unit='ms')
+        df2.set_index('Timestamp', inplace=True)
+
+        # Return the two DataFrames
+        return df1, df2
+
     def find_local_extrema(self, series, order=5):
         """Find local maxima and minima in a pandas Series using scipy's argrelextrema."""
-        n = order  # number of points to be checked before and after
+        n = order  # number of points to be checked before and after :)
 
         # Local maxima
         max_idx = argrelextrema(series.values, np.greater_equal, order=n)[0]
@@ -180,7 +222,7 @@ class BotChartAnalysis():
 
         # Average trading volume and variation
         average_trading_volume = df['Volume'].mean()
-        variation = ((df['Close'].iloc[-1] - df['Close'].iloc[0]) / df['Close'].iloc[0]) * 100
+        variation = ((df['Close'].iloc[-1] - df['Open'].iloc[0]) / df['Open'].iloc[0]) * 100
 
         # Trendline Analysis
         # Find local maxima and minima
@@ -245,7 +287,7 @@ class BotChartAnalysis():
             raise TypeError("'Close' and 'Volume' columns must be numeric.")
 
         # Calculate variation index
-        variation = ((df['Close'].iloc[-1] - df['Close'].iloc[0]) / df['Close'].iloc[0]) * 100
+        variation = ((df['Close'].iloc[-1] - df['Open'].iloc[0]) / df['Open'].iloc[0]) * 100
 
         # Average trading volume
         average_trading_volume = df['Volume'].mean()
@@ -286,27 +328,60 @@ class BotChartAnalysis():
         }
 
 
-    async def get_8h_varition(self):
+    async def get_8h_varition(self) -> float:
         """I only need the diff and regression since funding rate expired"""
-        pass
+        df = await self.get_needed_df('8h')
+
+        # Get 8 variation only
+        variation = ((df['Close'].iloc[-1] - df['Open'].iloc[0]) / df['Open'].iloc[0]) * 100
+        return variation
 
     async def get_10m_variation(self):
         """See what happened over the last 2 funding rates with the chart, whether was down or nothing happened, also i'll need to get the last and pre-last funding rate just in case"""
-        pass
+        df1, df2 = await self.get_double_df('10m')
+
+        # Get variation and volatility of the first Dataframe
+        variation1 = ((df1['Close'].iloc[-1] - df1['Open'].iloc[0]) / df1['Open'].iloc[0]) * 100
+        volatility1 = ((df1['High'].max() - df1['Low'].min()) / df1['Open'].iloc[0]) * 100
+        
+        # Get variation and volatiliy of the second Dataframe
+        variation2 = ((df2['Close'].iloc[-1] - df2['Open'].iloc[0]) / df2['Open'].iloc[0]) * 100
+        volatility2 = ((df2['High'].max() - df2['Low'].min()) / df2['Open'].iloc[0]) * 100
+
+        return {
+            "variation1": variation1,
+            "volatility1": volatility1,
+            "variation2": variation2,
+            "volatility2": volatility2
+        }
 
     async def get_1m_variation(self):
         """See what happened over the last 2 funding rate with the chart, 1 min analysis, whether was down or nothing happening during that minute. I'll need to get the last and pre-last funding rate value to evaluate a result"""
-        pass
+        df1, df2 = await self.get_double_df('1m')
+
+        # Get variation and volatility of the first Dataframe
+        variation1 = ((df1['Close'].iloc[-1] - df1['Open'].iloc[0]) / df1['Open'].iloc[0]) * 100
+        volatility1 = ((df1['High'].max() - df1['Low'].min()) / df1['Open'].iloc[0]) * 100
+        
+        # Get variation and volatiliy of the second Dataframe
+        variation2 = ((df2['Close'].iloc[-1] - df2['Open'].iloc[0]) / df2['Open'].iloc[0]) * 100
+        volatility2 = ((df2['High'].max() - df2['Low'].min()) / df2['Open'].iloc[0]) * 100
+
+        return {
+            "variation1": variation1,
+            "volatility1": volatility1,
+            "variation2": variation2,
+            "volatility2": volatility2
+        }
 
 
 
 async def main_testing():
     eight_hours_ago = int(datetime.now(pytz.utc).timestamp() * 1000) - (8 * 60 * 60 * 1000)
-    chart_analysis = BotChartAnalysis('MOODENGUSDT', -0.5, eight_hours_ago)
+    chart_analysis = BotChartAnalysis('SUNUSDT', -0.5, eight_hours_ago, 8)
 
-    res = await chart_analysis.get_weekly_analysis()
-    # res = await chart_analysis.get_needed_df('weekly')
-    # res = await chart_analysis.get_daily_analysis()
+    res = await chart_analysis.get_10m_variation()
+    
     print(res)
 
 if __name__ == "__main__":

@@ -371,6 +371,37 @@ async def get_user_accounts(user_credentials: Annotated[tuple[dict, str], Depend
 
     return user_accounts
 
+@app.post("/add_new_starred_symbol", description="#### Add new crypto as hilighted or starred so that the user can acces to it easly", tags=["SaaS"])
+async def add_new_starred_symbol(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_boddy: schemas.CryptoSearch):
+    _, user_id = user_credentials
+
+    await crud.add_new_starred_crypto(user_id=user_id, symbol=request_boddy.symbol, name=request_boddy.name, picture_url=request_boddy.picture_url)
+
+    return {"response": "crypto has been saved successfully"}
+
+@app.delete("/remove_starred_symbol/{symbol}", description="### Remove starred symbol (saved crypto)", tags=["SaaS"])
+async def remove_starred_symbol(symbol: str, user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
+    _, user_id = user_credentials
+
+    response = await crud.delete_starred_crypto(user_id=user_id, symbol=symbol)
+
+    return response
+
+@app.get("/get_main_panle_crypto/{symbol}", description="### See whether is **Starred** or it's **blocked** to trade\n\n This function is allowed for registered users only.\n\nFuture outputs: How many **liquidity** needs in this operation or in persentage", tags=["SaaS"])
+async def get_main_panle_crypto(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], symbol: str):
+    _, user_id = user_credentials
+
+    # Get whether is starred or not
+    _is_starred_crypto = await crud.is_starred_crypto(user_id=user_id, symbol=symbol)
+
+    # Get whether is blocked to trade or no
+
+    return {
+        "is_starred": _is_starred_crypto,
+        "is_blocked": False
+    }
+
+
 @app.get("/get_scheduled_cryptos", description="### See how many cryptos are opened or scheduled to be opened or closed (detailed data)", tags=["SaaS"])
 async def get_scheduled_cryptos():
     return {"response": "under construction until the bot will work properly :)"}

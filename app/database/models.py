@@ -27,6 +27,7 @@ class Users(Base):
     user_configurations = relationship("UserConfiguration", back_populates="user", cascade="all, delete-orphan")
     monthly_subscriptions = relationship("MonthlySubscription", back_populates="user", cascade="all, delete-orphan")
     historical_searched_cryptos = relationship("HistoricalSearchedCryptos", back_populates="user", cascade="all, delete-orphan")
+    starred_cryptos = relationship("StarredCryptos", back_populates="user", cascade="all, delete-orphan")
 
 class GoogleOAuth(Base):
     __tablename__ = "google_oauth"
@@ -177,6 +178,17 @@ class CryptoHistoricalPNL(Base):
     percentage_earning = Column(String(255))
 
     crypto = relationship("FutureCryptos", back_populates="crypto_historical_pnl")
+
+class StarredCryptos(Base):
+    __tablename__ = "starred_cryptos"
+
+    id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    symbol = Column(Text)
+    name = Column(Text)
+    picture_url = Column(Text)
+
+    user = relationship("Users", back_populates="starred_cryptos")
 
 
 # USER HISTORICAL

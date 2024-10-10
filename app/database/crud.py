@@ -1,6 +1,6 @@
 from .database import async_engine
 from .models import *
-from sqlalchemy import select, update, insert, delete, join
+from sqlalchemy import select, update, insert, delete, join, and_
 from functools import wraps
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError, DBAPIError, NoResultFound
@@ -514,6 +514,75 @@ async def get_list_id_accounts(session: AsyncSession, user_id: str):
 async def get_account_credentials(session: AsyncSession):
     pass
 
+
+# STARRED CRYPTOS
+
+@db_connection
+async def add_new_starred_crypto(session: AsyncSession, user_id: str, symbol: str, name: str, picture_url: str):
+    try:
+
+        try:
+            uuid_obj = uuid.UUID(user_id) 
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid UUID format: {id}")
+
+        new_starred_cypro = StarredCryptos(
+            user_id=uuid_obj,
+            symbol=symbol,
+            name=name,
+            picture_url=picture_url
+        )
+
+        session.add(new_starred_cypro)
+        await session.commit()
+        
+    except DBAPIError as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@db_connection
+async def is_starred_crypto(session: AsyncSession, user_id: str, symbol: str) -> bool:
+    """Checks whether it' starred crypto or not"""
+    result = await session.execute(
+        select(StarredCryptos)
+        .where(and_(StarredCryptos.user_id == user_id, StarredCryptos.symbol == symbol))
+    )
+
+    if not result.scalar_one_or_none():
+        return False
+    else:
+        return True
+
+
+@db_connection
+async def delete_starred_crypto(session: AsyncSession, user_id: str, symbol: str):
+    """Removes a crypto from the database by a given user_id and symbol"""
+    try:
+        # Ensure that the user_id is a valid UUID
+        uuid_obj = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid UUID format: {user_id}")
+
+    try:
+        # Query the StarredCryptos table by user_id and symbol
+        result = await session.execute(
+            select(StarredCryptos)
+            .where(and_(StarredCryptos.user_id == uuid_obj, StarredCryptos.symbol == symbol))
+        )
+
+        starred_crypto = result.scalar_one_or_none()
+    except DBAPIError as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+    if not starred_crypto:
+        raise HTTPException(status_code=404, detail=f"Crypto {symbol} not found for user {user_id}")
+    
+    # Delete the crypto if found
+    await session.delete(starred_crypto)
+    await session.commit()  # Commit after deletion
+
+    return {"response": "Starred crypto removed successfully"}
 
 
 async def main_tesings():

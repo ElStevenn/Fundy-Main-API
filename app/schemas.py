@@ -41,6 +41,7 @@ class CryptoSearch(BaseModel):
     name: str
     picture_url: str
 
+
 # CRYPTO SCHEDULE
 class CryptoAlertTask(BaseTask):
     asset: str
