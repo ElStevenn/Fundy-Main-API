@@ -277,19 +277,42 @@ async def get_user_profile(session: AsyncSession, user_id) -> dict:
 @db_connection
 async def update_profile(session: AsyncSession, email: str, user_update: UpdateProfileUpdate):
     """Update user profile"""
-    result = await session.execute(
-        update(Users)
+    
+    #  Get the user_id based on email
+    user = await session.execute(
+        select(Users.id)
         .where(Users.email == email)
-        .values(
-            name=user_update.name,
-            surname=user_update.surname,
-            url_picture=user_update.url_picture
-        )
-        .execution_options(synchronize_session="fetch")
+    )
+    user_id = user.scalar()
+
+    if not user_id:
+        return 0 
+    
+    # Check if the name and surname can be updated (if oauth_synced is True)
+    result_updatable = await session.execute(
+        select(UserConfiguration.oauth_synced)
+        .where(UserConfiguration.user_id == user_id)
     )
     
-    await session.commit()
-    return result.rowcount  
+    oauth_synced = result_updatable.scalar()
+
+    # Only update the name and surname if oauth_synced is True
+    if oauth_synced:
+        result = await session.execute(
+            update(Users)
+            .where(Users.id == user_id)
+            .values(
+                name=user_update.name,
+                surname=user_update.surname,
+                url_picture=user_update.url_picture
+            )
+            .execution_options(synchronize_session="fetch")
+        )
+        
+        await session.commit()
+        return result.rowcount
+    
+    return 0
 
 
 @db_connection
@@ -320,10 +343,24 @@ async def get_users_sorted_by_joined_at(session: AsyncSession):
 
 
 @db_connection
-async def setUserProfileBase(session: AsyncSession, name: str, surname: str,  user_id: str):
+async def createDefaultConfiguration(session: AsyncSession, user_id: str):
+    """Create default configuration for the user"""
+    default_configuration = UserConfiguration(
+        user_id = user_id,
+        min_funding_rate_threshold = 0.1,
+        oauth_synced = True,
+        picture_synced = True
+    )
+
+    session.add(default_configuration)
+    await session.commit()
+
+
+@db_connection
+async def setUserProfileBase(session: AsyncSession, name: str, surname: str, user_id: str):
     try:
-        # Ensure the user_id is a valid UUID4
-        uuid_obj = uuid.UUID(user_id, version=4)
+        # Query current values
+        existing_user = await session.get(Users, user_id)
         stmt = (
             update(Users)
             .where(Users.id == user_id)
@@ -332,16 +369,22 @@ async def setUserProfileBase(session: AsyncSession, name: str, surname: str,  us
                 surname=surname
             )
         )
-
         await session.execute(stmt)
+        
+        # If name or surname are different, set oauth_synced to False in UserConfiguration
+        if existing_user.name != name or existing_user.surname != surname:
+            oauth_stmt = (
+                update(UserConfiguration)
+                .where(UserConfiguration.user_id == user_id)
+                .values(oauth_synced=False)
+            )
+            await session.execute(oauth_stmt)
+
         await session.commit()
 
     except ValueError:
          raise HTTPException(status_code=400, detail=f"Error: {user_id} is not a valid UUID4")
 
-    except NoResultFound as e:
-        print(f"Error: {str(e)}")
-        await session.rollback()
 
 
 @db_connection
@@ -354,6 +397,12 @@ async def set_user_base_config(session: AsyncSession, user_config: UserBaseConfi
         stmt_select = select(UserConfiguration).where(UserConfiguration.user_id == uuid_obj)
         result = await session.execute(stmt_select)
         user_config_row = result.scalar()
+
+
+        # Ensure that the Name and Surname are the same, otherwise the boolean 'oauth_synced' will be false
+
+
+
 
         # check whether create or update
         if user_config_row:

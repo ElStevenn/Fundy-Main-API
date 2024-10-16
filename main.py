@@ -2,7 +2,7 @@
 # Author: Pau Mateu
 # Developer email: paumat17@gmail.com
 
-from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Depends, Query
+from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Depends, Query, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
@@ -202,11 +202,10 @@ async def google_callback(code: str):
             options={"verify_signature": False},
             audience=GOOGLE_CLIENT_ID
         )
-        
+
         user_email = decoded_token.get('email')
-        user_name = decoded_token.get('name') 
-        user_given_name = decoded_token.get('given_name') 
-        user_family_name = decoded_token.get('family_name') 
+        user_name = decoded_token.get('given_name') 
+        user_surname = decoded_token.get('family_name') 
         user_picture = decoded_token.get('picture') 
         user_id = decoded_token.get('sub')  
         
@@ -220,10 +219,10 @@ async def google_callback(code: str):
     # Create / Update credentials and permissions
     user = await crud.check_if_user_exists(user_email)
     if not user: 
-        # Create username (make it up)
-        username = f"{str(user_given_name).lower().replace(" ","")}{random.randint(1000, 9999)}"
+        # A new user has been created create the user and set default configuration
+        username = f"{str(user_name).lower().replace(" ","")}{random.randint(1000, 9999)}"
         new_user_id = await crud.create_new_user(
-            username=username, name=user_name, surname=user_family_name,
+            username=username, name=user_name, surname=user_surname,
             email=user_email, url_picture=user_picture
             )
         
@@ -234,6 +233,7 @@ async def google_callback(code: str):
             expires_at=credentials.expiry
         )
         await crud.create_google_oauth(str(user_id), new_creds)
+        await crud.createDefaultConfiguration(user_id=str(new_user_id))
         type_response = "new_user"
         
     else:
@@ -242,9 +242,10 @@ async def google_callback(code: str):
             refresh_token=credentials.refresh_token,
             expires_at=credentials.expiry
         )
+        
         update_user = dbschemas.UpdateProfileUpdate(
             name=user_name,
-            surname=user_family_name,
+            surname=user_surname,
             url_picture=user_picture
         )
 
@@ -340,11 +341,59 @@ async def get_user_profile(user_credentials: Annotated[tuple[dict, str], Depends
 
     return user_data
 
-@app.post("/set_user_configuration", description="### Update user configuration data:\n\n - **minimum_founding_rate**\n\n - **User Exchange**", tags=["SaaS"])
-async def update_user_configuration(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_body: schemas.UpdateUserConf):
+@app.get("/get_whole_user_profile", description="### Get user profile conf, everything about getting the user profile configuration", tags=["SaaS"], ) # response_model=schemas.UserConfProfile
+async def get_whole_user_profile(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
     _, user_id = user_credentials
 
-    return {}
+    user_conf = await crud.get_whole_user(user_id=user_id)
+
+    return user_conf
+
+
+@app.post("/set_user_conf_profile", tags=["SaaS"])
+async def update_user_configuration(
+    user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], 
+    request_body: schemas.UserConfProfile, 
+    request: Request
+):
+    _, user_id = user_credentials
+
+    # Validate UUID
+    try:
+        uuid_obj = uuid.UUID(user_id, version=4)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Error: {user_id} is not a valid UUID4")
+
+
+    # Update user profile
+    await crud.setUserProfileBase(name=request_body.name, surname=request_body.surname, user_id=user_id)
+
+    # Create UserBaseConfig instance to update configuration
+    user_config = dbschemas.UserBaseConfig(
+        webpage_url=request_body.webpage_url,
+        bio=request_body.bio,
+        main_used_exchange=request_body.main_used_exchange,
+        trading_experience=request_body.trading_experience,
+        location=request_body.location
+    )
+
+    await crud.set_user_base_config(user_config=user_config, user_id=user_id)
+
+    return {"success": True, "message": "User profile updated successfully"}
+
+
+@app.put("/change_user_picture/{user_id}", description="### Change user picture \n\n Change user picture", tags=["SaaS"])
+async def change_user_picture(user_id: str, file: UploadFile):
+    file.filename
+    file = await file.read()
+
+    return {"response": "under construction"}
+
+@app.post("/change_user_email/{user_id}", description="### Endpoint to change the user email, requires oauth verification")
+async def change_user_email(user_id: str, request_body):
+
+    return {"response": "under constuction"}
+
 
 @app.post("/set_userkeys", description="### Set user keys to use the exchange \n\n**Required data:**\n\n - Encrypted Apikey\n\n - Encrypted Secret Key\n\n - ", tags=["SaaS"])
 async def set_user_credentials(request_body: schemas.UserCredentials):

@@ -32,9 +32,17 @@ class DatetimeTask(BaseTask):
 class EveryDayTask(BaseTask):
     execute_at: List[str]  # List of times in 'HH:MM' format
 
-class UpdateUserConf(BaseModel):
-    minium_funding_rate_to_show: Optional[str] = None
-    user_exchange: Optional[str] = None
+
+class UserBase(BaseModel):
+    name: str
+    surname: str
+
+class UserConfProfile(UserBase):
+    webpage_url: Optional[str] = None
+    bio: Optional[str] = None
+    main_used_exchange: Optional[str] = None
+    trading_experience: Optional[str] = None
+    location: Optional[str] = None
 
 class CryptoSearch(BaseModel):
     symbol: str
