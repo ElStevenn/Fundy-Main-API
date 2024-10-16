@@ -1,4 +1,4 @@
-from sqlalchemy import String, Float, DateTime, Text, ForeignKey, JSON, BIGINT, Column, func, Integer, Numeric, INT, LargeBinary
+from sqlalchemy import String, Float, DateTime, Text, ForeignKey, JSON, BIGINT, Column, func, Integer, Numeric, INT, LargeBinary, Boolean
 from sqlalchemy.dialects.postgresql import UUID as pgUUID
 from sqlalchemy.orm import relationship, declarative_base
 from cryptography.fernet import Fernet
@@ -24,10 +24,12 @@ class Users(Base):
     # One-to-many relationships
     accounts = relationship("Account", back_populates="user", cascade="all, delete-orphan")
     google_oauths = relationship("GoogleOAuth", back_populates="user", cascade="all, delete-orphan")
-    user_configurations = relationship("UserConfiguration", back_populates="user", cascade="all, delete-orphan")
     monthly_subscriptions = relationship("MonthlySubscription", back_populates="user", cascade="all, delete-orphan")
     historical_searched_cryptos = relationship("HistoricalSearchedCryptos", back_populates="user", cascade="all, delete-orphan")
     starred_cryptos = relationship("StarredCryptos", back_populates="user", cascade="all, delete-orphan")
+
+    # One-to-one relationships
+    user_configurations = relationship("UserConfiguration", back_populates="user", cascade="all, delete-orphan", uselist=False)
 
 class GoogleOAuth(Base):
     __tablename__ = "google_oauth"
@@ -48,7 +50,13 @@ class UserConfiguration(Base):
     id = Column(pgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(pgUUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
     client_timezone = Column(Text, default='Europe/Amsterdam')
-    minimum_founding_rate_to_show = Column(Float)
+    min_funding_rate_threshold = Column(Float)
+    location = Column(Text) 
+    bio = Column(Text)
+    webpage_url = Column(Text)
+    oauth_synced = Column(Boolean, default=True)
+    picture_synced = Column(Boolean, default=True)
+    trading_experience = Column(String(20), default='new') # Less than 1 year, 1-2 years, 2-5 years ,5-10 years, 10+ years
     main_used_exchange = Column(Text, default="bitget") # 'bitget', 'binance', 'okx', 'crypto.com', 'kucoin'
 
     # Many-to-one relationship with Users

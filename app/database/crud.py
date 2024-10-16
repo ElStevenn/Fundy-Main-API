@@ -319,6 +319,116 @@ async def get_users_sorted_by_joined_at(session: AsyncSession):
     return result.scalars().all()
 
 
+@db_connection
+async def setUserProfileBase(session: AsyncSession, name: str, surname: str,  user_id: str):
+    try:
+        # Ensure the user_id is a valid UUID4
+        uuid_obj = uuid.UUID(user_id, version=4)
+        stmt = (
+            update(Users)
+            .where(Users.id == user_id)
+            .values(
+                name=name,
+                surname=surname
+            )
+        )
+
+        await session.execute(stmt)
+        await session.commit()
+
+    except ValueError:
+         raise HTTPException(status_code=400, detail=f"Error: {user_id} is not a valid UUID4")
+
+    except NoResultFound as e:
+        print(f"Error: {str(e)}")
+        await session.rollback()
+
+
+@db_connection
+async def set_user_base_config(session: AsyncSession, user_config: UserBaseConfig, user_id: str):
+    try:
+        # Ensure the user_id is a valid UUID4
+        uuid_obj = uuid.UUID(user_id, version=4)
+
+        # Try to fetch the existing configuration for the user
+        stmt_select = select(UserConfiguration).where(UserConfiguration.user_id == uuid_obj)
+        result = await session.execute(stmt_select)
+        user_config_row = result.scalar()
+
+        # check whether create or update
+        if user_config_row:
+            stmt_update = (
+                update(UserConfiguration)
+                .where(UserConfiguration.user_id == uuid_obj)
+                .values(
+                    webpage_url=user_config.webpage_url,
+                    location=user_config.location,
+                    bio=user_config.bio,
+                    main_used_exchange=user_config.main_used_exchange,
+                    trading_experience=user_config.trading_experience
+                )
+            )
+            await session.execute(stmt_update)
+        else:
+            # Insert new configuration
+            new_user_config = UserConfiguration(
+                user_id=uuid_obj,
+                webpage_url=user_config.webpage_url,
+                location=user_config.location,
+                bio=user_config.bio,
+                main_used_exchange=user_config.main_used_exchange,
+                trading_experience=user_config.trading_experience
+            )
+            session.add(new_user_config)
+
+        # Commit changes
+        await session.commit()
+
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Error: {user_id} is not a valid UUID4")
+
+    except NoResultFound as e:
+        print(f"Error: {str(e)}")
+        await session.rollback()
+
+
+@db_connection
+async def get_whole_user(session: AsyncSession, user_id: str):
+
+    uuid_obj = uuid.UUID(user_id, version=4)
+
+    # Query by user_id in UserConfiguration
+    result1 = await session.execute(
+        select(UserConfiguration)
+        .where(UserConfiguration.user_id == uuid_obj)
+    )
+
+    result2 = await session.execute(
+        select(Users)
+        .where(Users.id == uuid_obj)
+    )
+
+    user_profile = result1.scalar_one_or_none()
+    user_data = result2.scalar_one_or_none()
+
+    if not user_profile and not user_data:
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+
+    return {
+        "username": user_data.username,
+        "name": user_data.name,
+        "surname": user_data.surname,
+        "email": user_data.email,
+        "url_picture": user_data.url_picture,
+        "client_timezone": user_profile.client_timezone if user_profile else None,
+        "min_funding_rate_threshold": user_profile.min_funding_rate_threshold if user_profile else None,
+        "location": user_profile.location if user_profile else None,
+        "bio": user_profile.bio if user_profile else None,
+        "webpage_url": user_profile.webpage_url if user_profile else None,
+        "trading_experience": user_profile.trading_experience if user_profile else None,
+        "main_used_exchange": user_profile.main_used_exchange if user_profile else None
+    }
+
 
 # USER HISTORICAL SEARCH
 @db_connection

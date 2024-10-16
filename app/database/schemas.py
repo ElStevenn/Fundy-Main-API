@@ -35,3 +35,11 @@ class CreateHistoricalPNL(BaseModel):
     opening_fee: str
     closing_fee: str
     net_profits: str
+
+class UserBaseConfig(BaseModel):
+    webpage_url: Optional[str] = None
+    bio: Optional[str] = None
+    main_used_exchange: Optional[str] = None
+    trading_experience: Optional[str] = None
+    location: Optional[str] = None
+    
