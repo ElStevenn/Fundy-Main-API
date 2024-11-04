@@ -58,6 +58,7 @@ class UserConfiguration(Base):
     picture_synced = Column(Boolean, default=True)
     trading_experience = Column(String(20), default='new') # Less than 1 year, 1-2 years, 2-5 years ,5-10 years, 10+ years
     main_used_exchange = Column(Text, default="bitget") # 'bitget', 'binance', 'okx', 'crypto.com', 'kucoin'
+    public_email = Column(String(255))
 
     # Many-to-one relationship with Users
     user = relationship("Users", back_populates="user_configurations")

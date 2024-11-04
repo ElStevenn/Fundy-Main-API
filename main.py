@@ -2,7 +2,7 @@
 # Author: Pau Mateu
 # Developer email: paumat17@gmail.com
 
-from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Depends, Query, UploadFile
+from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Depends, Query, UploadFile, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
@@ -28,6 +28,7 @@ from app.google_service import get_credentials_from_code, get_google_flow
 from app.security import get_current_active_credentials_google, get_current_active_user, encode_session_token, get_current_credentials
 from app.database import crud
 from app.database import schemas as dbschemas
+# from app.utils import None
 from config import GOOGLE_CLIENT_ID, FRONTEND_IP, PUBLIC_KEY
 
 async_scheduler = ScheduleLayer("Europe/Amsterdam")
@@ -133,7 +134,7 @@ def run_scheduler(loop):
         "### Current Status:\n"
         "This feature is under development and will be available in a future release."
     ), 
-    tags=["Schedule By Crypto"]
+    tags=["Schedule a Crypto"]
 )
 async def add_new_alert_if_crypto_reaches_price(request_body: schemas.CryptoAlertTask):
     # Placeholder for future implementation
@@ -142,13 +143,7 @@ async def add_new_alert_if_crypto_reaches_price(request_body: schemas.CryptoAler
 
 
 
-# PART 3 | FOUNDING RATE SERVICE
-
-def next_execution_time_test(minutes = 5) -> datetime:
-    today = datetime.now(timezone('Europe/Amsterdam'))
-    next_time = today + timedelta(minutes=minutes)
-    return next_time
-
+# - - - TESTING - - -
 
 @app.get("/test_schedule", tags=['Testing'])
 async def test_dirty_schedule(background_tasks: BackgroundTasks):
@@ -164,8 +159,8 @@ async def test_dirty_schedule(background_tasks: BackgroundTasks):
 async def next_execution_time():
     return {"next_execution_time": founding_rate_service.next_execution_time}
 
-# SAAS Service
-@app.get("/get_hight_founind_rates/{limit}", description="", tags=["SaaS"])
+#  - - - SAAS Service - - -
+@app.get("/get_hight_founind_rates/{limit}", description="### Get hight funding rates\n\nGet cryptos with hight funding rates", tags=["SaaS"])
 async def get_hight_founind_rates(limit):
 
     all_cryptos = await bitget_client.get_future_cryptos()
@@ -379,6 +374,13 @@ async def update_user_configuration(
 
     await crud.set_user_base_config(user_config=user_config, user_id=user_id)
 
+    # Update or Delete Email
+    print("value public email -> ", request_body.public_email)
+    if not request_body.public_email:
+        await crud.delete_public_email(user_id=user_id)
+    else:
+        await crud.set_public_email(user_id=user_id, public_email=request_body.public_email)
+
     return {"success": True, "message": "User profile updated successfully"}
 
 
@@ -387,12 +389,12 @@ async def change_user_picture(user_id: str, file: UploadFile):
     file.filename
     file = await file.read()
 
-    return {"response": "under construction"}
+    return Response(content="Under construction, not implemented",status_code=501)
 
 @app.post("/change_user_email/{user_id}", description="### Endpoint to change the user email, requires oauth verification")
 async def change_user_email(user_id: str, request_body):
 
-    return {"response": "under constuction"}
+    return Response(content="Under construction, not implemented",status_code=501)
 
 
 @app.post("/set_userkeys", description="### Set user keys to use the exchange \n\n**Required data:**\n\n - Encrypted Apikey\n\n - Encrypted Secret Key\n\n - ", tags=["SaaS"])
@@ -426,7 +428,7 @@ async def add_new_starred_symbol(user_credentials: Annotated[tuple[dict, str], D
 
     await crud.add_new_starred_crypto(user_id=user_id, symbol=request_boddy.symbol, name=request_boddy.name, picture_url=request_boddy.picture_url)
 
-    return {"response": "crypto has been saved successfully"}
+    return Response(content="crypto has been saved successfully",  status_code=204)
 
 @app.delete("/remove_starred_symbol/{symbol}", description="### Remove starred symbol (saved crypto)", tags=["SaaS"])
 async def remove_starred_symbol(symbol: str, user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):

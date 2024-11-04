@@ -1,11 +1,12 @@
 from .database import async_engine
 from .models import *
 from sqlalchemy import select, update, insert, delete, join, and_
-from functools import wraps
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError, DBAPIError, NoResultFound
 from sqlalchemy import cast
 from sqlalchemy.dialects.postgresql import UUID
+from functools import wraps
 from fastapi import HTTPException
 from typing import Optional
 from datetime import timedelta, datetime, timezone
@@ -331,7 +332,56 @@ async def get_joined_users(session: AsyncSession, limit: int):
 
     return joined_users
 
-        
+@db_connection
+async def delete_public_email(session: AsyncSession, user_id):
+    """Delete public email from user id as well as handle all its exceptions"""
+    result = await session.execute(
+        select(UserConfiguration)
+        .where(UserConfiguration.user_id == user_id)
+    )
+    user_config = result.scalars().first()
+
+    if user_config is None:
+        return "not modified"  
+
+    if user_config.public_email is None:
+        return "not modified"
+
+    await session.execute(
+        update(UserConfiguration)
+        .where(UserConfiguration.user_id == user_id)
+        .values(public_email=None)
+    )
+    await session.commit()
+    return "deleted"
+
+
+@db_connection
+async def set_public_email(session: AsyncSession, user_id: int, public_email: str | None):
+    """Set public email"""
+    # Check if the user exists
+    result = await session.execute(
+        select(UserConfiguration).where(UserConfiguration.user_id == user_id)
+    )
+    user_config = result.scalars().first()
+
+    if user_config is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # If public_email is None, we don't update it
+    if public_email is not None:
+        # Proceed to update the public_email if user exists
+        await session.execute(
+            update(UserConfiguration)
+            .where(UserConfiguration.user_id == user_id)
+            .values(public_email=public_email)
+        )
+        await session.commit()
+
+    return {"message": "Public email updated" if public_email else "No email updated"}
+
+    
+
 # USER CONFIGURATION TABLE
 @db_connection
 async def get_users_sorted_by_joined_at(session: AsyncSession):
@@ -457,8 +507,24 @@ async def get_whole_user(session: AsyncSession, user_id: str):
         .where(Users.id == uuid_obj)
     )
 
+    result3 = await session.execute(
+        select(Account)
+        .where(Account.user_id == user_id)
+    )
+
     user_profile = result1.scalar_one_or_none()
     user_data = result2.scalar_one_or_none()
+    user_accounts = result3.scalars().all()
+
+    # Get user email and all its accounts emails
+    user_emails = [user_data.email]
+
+    if len(user_accounts) <= 1:
+        account_emails = [acc.email for acc in user_accounts]
+        for email in account_emails:
+            if email not in user_emails: 
+                user_emails.append(email)
+  
 
     if not user_profile and not user_data:
         raise HTTPException(status_code=404, detail=f"User {user_id} not found")
@@ -467,7 +533,6 @@ async def get_whole_user(session: AsyncSession, user_id: str):
         "username": user_data.username,
         "name": user_data.name,
         "surname": user_data.surname,
-        "email": user_data.email,
         "url_picture": user_data.url_picture,
         "client_timezone": user_profile.client_timezone if user_profile else None,
         "min_funding_rate_threshold": user_profile.min_funding_rate_threshold if user_profile else None,
@@ -475,7 +540,9 @@ async def get_whole_user(session: AsyncSession, user_id: str):
         "bio": user_profile.bio if user_profile else None,
         "webpage_url": user_profile.webpage_url if user_profile else None,
         "trading_experience": user_profile.trading_experience if user_profile else None,
-        "main_used_exchange": user_profile.main_used_exchange if user_profile else None
+        "main_used_exchange": user_profile.main_used_exchange if user_profile else None,
+        "public_email": user_profile.public_email if user_profile else None,
+        "avariable_emails": user_emails
     }
 
 

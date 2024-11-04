@@ -39,6 +39,7 @@ class UserBase(BaseModel):
 
 class UserConfProfile(UserBase):
     webpage_url: Optional[str] = None
+    public_email: Optional[str] = None
     bio: Optional[str] = None
     main_used_exchange: Optional[str] = None
     trading_experience: Optional[str] = None
