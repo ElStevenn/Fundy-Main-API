@@ -1,5 +1,9 @@
-venv
-.env
+src/venv
+src/.env
 .history
-security
+*security
+
 .terraform.lock.hcl
+.terraform
+
+*__pycache__

@@ -17,7 +17,7 @@ chmod +x *
 
 - Step 2
 ```
-./restart_container.sh
+./run_local.sh
 ```
 
 ### Very important!
