@@ -15,8 +15,7 @@ from datetime import datetime, timedelta
 from pytz import timezone
 import uuid, asyncio, schedule, os, time, threading, pytz, jwt, random
 
-
-from app import redis_service, schemas
+from app import schemas
 from app.founding_rate_service.main_sercice_layer import FoundinRateService
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
@@ -111,7 +110,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-redis_service_ = redis_service.RedisService()
 founding_rate_service = FoundinRateService()
 bitget_client = BitgetClient()
 background_task = None 
@@ -325,10 +323,6 @@ async def get_last_searched_cryptos(user_credentials: Annotated[tuple[dict, str]
     else:
         return []
 
-@app.get("/get_random_faq", description="Get random phrase to put it in the FAQ part", tags=["SaaS"])
-async def get_radom_faq():
-    return {"response": "under construction"}
-
 @app.get("/get_user_profile", description="### Get perfile user data:\n\n - **Name**\n\n - **Surname**\n\n - **Email**\n\n - **thumbnail(url)**", tags=["SaaS"])
 async def get_user_profile(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request: Request):
     _, user_id = user_credentials
@@ -398,13 +392,20 @@ async def change_user_email(user_id: str, request_body):
 
 
 @app.post("/set_userkeys", description="### Set user keys to use the exchange \n\n**Required data:**\n\n - Encrypted Apikey\n\n - Encrypted Secret Key\n\n - ", tags=["SaaS"])
-async def set_user_credentials(request_body: schemas.UserCredentials):
-    # user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]
-    # _, user_id = user_credentials
+async def set_user_credentials(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_body: schemas.UserCredentials):
+    _, user_id = user_credentials
 
-    response = await crud.set_new_user_credentials(account_id=request_body.account_id, encrypted_apikey=request_body.encrypted_apikey, encrypted_secret_key=request_body.encrypted_secret_key, encrypted_passphrase=request_body.encrypted_passphrase)
+    # Check if account exist
+    account_id = await crud.get_account_id(request_body.email)
+    if account_id:
+        # Update Credentials
+        await crud.set_new_user_credentials(account_id=account_id, apikey=request_body.apikey, secret_key=request_body.secret_key, passphrase=request_body.passphrase)
+    else:
+        # Create account and set credentials
+        account_id = await crud.add_new_account(user_id, 'not-specified', request_body.email)
+        await crud.set_new_user_credentials(account_id=account_id, apikey=request_body.apikey, secret_key=request_body.secret_key, passphrase=request_body.passphrase)
 
-    return response
+    return Response(status_code=204)
 
 @app.post("/create_new_account", description="### Create a new account for the user\n\n**Required data:**\n\n - Account Type\n\n - Email\n\n", tags=["SaaS"])
 async def create_new_account(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_boddy: schemas.UserAccount):
@@ -428,15 +429,16 @@ async def add_new_starred_symbol(user_credentials: Annotated[tuple[dict, str], D
 
     await crud.add_new_starred_crypto(user_id=user_id, symbol=request_boddy.symbol, name=request_boddy.name, picture_url=request_boddy.picture_url)
 
-    return Response(content="crypto has been saved successfully",  status_code=204)
+    return Response(status_code=204)
 
-@app.delete("/remove_starred_symbol/{symbol}", description="### Remove starred symbol (saved crypto)", tags=["SaaS"])
+
+@app.delete("/remove_starred_symbol/{symbol}", description="### Remove starred symbol (saved crypto) of the user", tags=["SaaS"])
 async def remove_starred_symbol(symbol: str, user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
     _, user_id = user_credentials
 
-    response = await crud.delete_starred_crypto(user_id=user_id, symbol=symbol)
+    await crud.delete_starred_crypto(user_id=user_id, symbol=symbol)
 
-    return response
+    return Response(status_code=204)
 
 @app.get("/get_main_panle_crypto/{symbol}", description="### See whether is **Starred** or it's **blocked** to trade\n\n This function is allowed for registered users only.\n\nFuture outputs: How many **liquidity** needs in this operation or in persentage", tags=["SaaS"])
 async def get_main_panle_crypto(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], symbol: str):
@@ -449,7 +451,7 @@ async def get_main_panle_crypto(user_credentials: Annotated[tuple[dict, str], De
 
     return {
         "is_starred": _is_starred_crypto,
-        "is_blocked": False
+        "is_blocked": False # Crypto blocked to trade
     }
 
 

@@ -54,7 +54,6 @@ PUBLIC_KEY = load_public_key('security/public_key.pem')
 PRIVATE_KEY = load_private_key('security/private_key.pem')
 
 
-
 # API-KEYS
 COINMARKETCAP_APIKEY = os.getenv('COINMARKETCAP_APIKEY', 'coinmarketcap-apikey')
 HISTORICAL_FR_API_IP = os.getenv('HISTORICAL_FR_API_IP', 'https//0.0.0.0/')

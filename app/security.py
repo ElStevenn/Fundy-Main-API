@@ -8,7 +8,6 @@ from typing import Annotated
 from uuid import UUID
 import jwt, base64
 
-from app.database.crud import get_google_credentials
 from config import JWT_SECRET_KEY, PRIVATE_KEY, PUBLIC_KEY
 
 
@@ -56,6 +55,7 @@ async def get_current_active_user(
     return current_user_id
 
 async def get_current_credentials(token: Annotated[str, Depends(oauth2_scheme)]):
+    from app.database.crud import get_google_credentials
     user_id = decode_session_token(token)
  
     credentials = await get_google_credentials(user_id)

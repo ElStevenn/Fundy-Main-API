@@ -5,19 +5,30 @@ metadata:
   labels:
     app: postgres
 spec:
-  replicas: 1 # Since it's a small application, using 1 replica
-
+  replicas: 1
   selector:
-    matchLabels: # This matches the labels in the pod template and will be used by the Service
+    matchLabels:
       app: postgres
-
   template:
-    metadata: # Fixed typo here (was 'meatadata')
+    metadata:
       labels:
-        app: postgres # Label applied to the Pods managed by this Deployment
+        app: postgres
     spec:
       containers:
       - name: postgres
         image: postgres:latest
         ports:
         - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: POSTGRES_PASSWORD
+
+# FINISH THIS, THE POD IT DOESN'T WORK PROPERLY

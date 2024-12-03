@@ -1,19 +1,22 @@
-from .database import async_engine
-from .models import *
+from functools import wraps
+from fastapi import HTTPException
+from typing import Optional
+from datetime import timedelta, datetime, timezone
+from pydantic import BaseModel
+import uuid, asyncio
+
 from sqlalchemy import select, update, insert, delete, join, and_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError, DBAPIError, NoResultFound
 from sqlalchemy import cast
 from sqlalchemy.dialects.postgresql import UUID
-from functools import wraps
-from fastapi import HTTPException
-from typing import Optional
-from datetime import timedelta, datetime, timezone
-from app.security import encrypt_data
-from pydantic import BaseModel
+
+from src.app.security import encrypt_data
+
 from .schemas import *
-import uuid, asyncio
+from .database import async_engine
+from .models import *
 
 
 def db_connection(func):
@@ -468,8 +471,6 @@ async def set_user_base_config(session: AsyncSession, user_config: UserBaseConfi
         # Ensure that the Name and Surname are the same, otherwise the boolean 'oauth_synced' will be false
 
 
-
-
         # check whether create or update
         if user_config_row:
             stmt_update = (
@@ -670,15 +671,6 @@ async def delete_searched_crypto(session: AsyncSession, id: str) -> None:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 @db_connection
-async def create_new_account(session: AsyncSession, user_id, email: str, type: str):
-    """Creates a new account"""
-    
-    new_account = Account(type=type, email=email, user_id=user_id)
-    session.add(new_account)
-    await session.commit()
-
-
-@db_connection
 async def set_new_user_credentials(session: AsyncSession, account_id: str, apikey, secret_key, passphrase):
     """Create or Update user credentials for Bitget"""
     
@@ -718,46 +710,97 @@ async def set_new_user_credentials(session: AsyncSession, account_id: str, apike
 
     return {"status": "success", "message": f"Credentials {operation} successfully.", "operation": operation}
 
-
-@db_connection
-async def get_list_id_accounts(session: AsyncSession, user_id: str):
-    """Get all accounts for a given user_id"""
-
-  
-    try:
-        user_uuid = uuid.UUID(user_id)  
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid user_id: {user_id}")
-
-    try:
-        # Perform the query to fetch accounts by user_id
-        result = await session.execute(
-            select(Account).where(Account.user_id == user_uuid)
-        )
-        accounts = result.scalars().all()
-
-        # If no accounts found, raise a 404 error
-        if not accounts:
-            raise HTTPException(status_code=404, detail=f"No accounts found for user_id: {user_id}")
-
-        # Format the results as a list of dictionaries
-        account_data = [
-            {"account_id": acc.id, "type": acc.type, "email": acc.email} 
-            for acc in accounts
-        ]
-
-        return account_data
-
-    except Exception as e:
-        # Raise a detailed error message for debugging
-        raise HTTPException(status_code=404, detail=str(e))
-
-  
-    
-
 @db_connection
 async def get_account_credentials(session: AsyncSession):
     pass
+
+# - - - ACCOUNTS - - - 
+@db_connection
+async def get_all_accounts(session: AsyncSession, user_id: str):
+    """Save trading account"""
+
+    # Check if the trading account doesn't have the 
+    result = await session.execute(
+        select(Account)
+        .where(
+            Account.user_id == user_id,
+        )
+    )
+
+    accounts = result.scalars().all()
+
+    if accounts:
+        all_trading_accounts = [{"account_id": res.account_id, "account_name": res.account_name, "type": res.type, "email": res.email, "proxy_ip": res.proxy_ip} for res in accounts]
+        return all_trading_accounts
+    else:
+        return []
+    
+@db_connection
+async def set_trading_account(session: AsyncSession, user_id: str, account_id: str) -> int:
+    """Set trading account as main, or turn all accounts into sub-accounts if account_id is None."""
+
+    accounts = await get_all_accounts(user_id=user_id) 
+
+    if not accounts:
+        return 404 
+    try:
+        if account_id is None:
+            await session.execute(
+                update(Account)
+                .where(Account.user_id == user_id)  
+                .values(type='sub-account')
+            )
+            await session.commit()
+            return 200
+
+        for account in accounts:
+            if account['type'] == 'main' and account_id != account['account_id']:
+                await session.execute(
+                    update(Account)
+                    .where(Account.account_id == account['account_id'])  
+                    .values(type='sub-account')
+                )
+
+        result = await session.execute(
+            update(Account)
+            .where(Account.account_id == account_id)  
+            .values(type='main-account')
+        )
+
+        if result.rowcount == 0:
+            await session.rollback()  
+            return 404
+
+        await session.commit()
+        return 200
+
+    except Exception as e:
+        print(f"Error during account update: {e}")
+        await session.rollback()
+        raise
+
+
+
+
+@db_connection
+async def get_main_trading_account(session: AsyncSession, user_id):
+    """Select main trading account"""
+    result = await session.execute(
+        select(Account)
+        .where(
+            and_(
+                Account.user_id == user_id,
+                Account.type == 'main-account'
+            )
+        )
+    )
+
+    main_trading_account = result.scalar_one_or_none()
+
+    if not main_trading_account:
+        return None
+    
+    return {"account_id": main_trading_account.account_id, "account_name": main_trading_account.account_name, "type": main_trading_account.type, "email": main_trading_account.email, "proxy_id": main_trading_account.proxy_ip}
 
 
 # STARRED CRYPTOS
@@ -825,7 +868,7 @@ async def delete_starred_crypto(session: AsyncSession, user_id: str, symbol: str
     
     # Delete the crypto if found
     await session.delete(starred_crypto)
-    await session.commit()  # Commit after deletion
+    await session.commit()  
 
     return {"response": "Starred crypto removed successfully"}
 
