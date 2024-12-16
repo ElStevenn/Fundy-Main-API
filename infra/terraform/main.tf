@@ -110,8 +110,7 @@ resource "aws_instance" "main_api_project" {
 
   provisioner "remote-exec" {
     inline = [
-      "cd /home/ubuntu",
-      ""
+      "bash /home/ubuntu/scripts/CI/source.sh",
     ]
 
     connection {
