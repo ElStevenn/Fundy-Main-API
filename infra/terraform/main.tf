@@ -108,18 +108,18 @@ resource "aws_instance" "main_api_project" {
     }
   }
 
-  provisioner "remote-exec" {
-    inline = [
-      "bash /home/ubuntu/scripts/CI/source.sh",
-    ]
-
-    connection {
-      type = "ssh"
-      user = "ubuntu"
-      private_key = file("../../src/security/instance_key")
-      host = self.public_ip
-    }
+provisioner "remote-exec" {
+  inline = [
+    "bash /home/ubuntu/scripts/CI/source.sh",
+  ]
+  connection {
+    type        = "ssh"
+    user        = "ubuntu"
+    private_key = file("../../src/security/instance_key")
+    host        = self.public_ip
   }
+}
+
 
 
 }
