@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     stages {
-        stage('Build') {
+        stage('Source') {
             steps {
                 echo 'Build main API Image'
                 sudo 'docker build -t main-api .'

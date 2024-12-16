@@ -20,7 +20,7 @@ from src.app.founding_rate_service.main_sercice_layer import FoundinRateService
 from src.app.founding_rate_service.schedule_layer import ScheduleLayer
 from src.app.founding_rate_service.bitget_layer import BitgetClient
 from src.app.google_service import get_credentials_from_code, get_google_flow
-from src.app.security import get_current_active_credentials_google, get_current_active_user, encode_session_token, get_current_credentials
+from src.app.security import get_current_active_credentials_google, get_current_active_user, encode_session_token, get_current_credentials, decode_session_token
 from src.app.database import crud
 from src.app.database import schemas as dbschemas
 # from app.utils import None
@@ -111,7 +111,7 @@ origins = [
     "http://0.0.0.0:80",
     "http://localhost:8000",
     "http://3.143.209.3/",
-    
+    "http://localhost"
 ]
 
 app.add_middleware(
@@ -380,8 +380,6 @@ async def update_user_configuration(
 
     await crud.set_user_base_config(user_config=user_config, user_id=user_id)
 
-    # Update or Delete Email
-    print("value public email -> ", request_body.public_email)
     if not request_body.public_email:
         await crud.delete_public_email(user_id=user_id)
     else:
@@ -398,15 +396,87 @@ async def change_user_picture(user_id: str, file: UploadFile):
 
 @app.post("/user/change-email/{user_id}", description="### Endpoint to change the user email, requires oauth verification", tags=["User"], deprecated=True)
 async def change_user_email(user_id: str, request_body):
+
+    
+
     return Response(content="Under construction, not implemented",status_code=501)
 
-@app.post("/add_new_starred_symbol", description="#### Add new crypto as hilighted or starred so that the user can acces to it easly", tags=["User"])
+@app.delete("/user/delete-account", description="### Delete all user account\n\nThis endpoint deletes all the user info and data no matter what.", tags=["User"])
+async def delete_user_account(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
+    _, user_id = user_credentials
+
+    deletion = await crud.delete_user_account(user_id=user_id)
+
+    if deletion == 200:
+        session_token = encode_session_token(
+            user_id=user_id,
+            status="deleted"
+        )
+    else:
+        raise HTTPException(status_code=400, detail="An error occurred while deleting the user account")
+
+    response = JSONResponse(
+        content={"redirect_url": FRONTEND_IP + "/delete_account"}
+    )
+    response.set_cookie(
+        key="credentials",
+        value=f"Bearer {session_token}",
+        httponly=False,
+        secure=True,
+        samesite='Lax'
+    )
+    return response
+
+
+
+@app.get("/user/confirm-delete", description="### Confirms deletion of an account", tags=["User"])
+async def confirm_delete(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
+    """
+    Confirms the deletion status of the user account based on the session token.
+    """
+    _, user_id = user_credentials
+
+    # Decode the session token to check the status
+    decoded_token = decode_session_token(user_id); print("Decoded token")
+
+    if decoded_token["status"] == "deleted":
+        await crud.delete_user_account(user_id=user_id)
+        return Response(status_code=204)
+    else:
+        raise HTTPException(status_code=403, detail="Invalid or expired token")
+
+@app.post("/user/starred_symbol", description="#### Add new crypto as hilighted or starred so that the user can acces to it easly", tags=["User"])
 async def add_new_starred_symbol(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_boddy: schemas.CryptoSearch):
     _, user_id = user_credentials
 
     await crud.add_new_starred_crypto(user_id=user_id, symbol=request_boddy.symbol, name=request_boddy.name, picture_url=request_boddy.picture_url)
 
     return Response(status_code=204)
+
+
+@app.delete("/user/starred_symbol/{symbol}", description="### Remove starred symbol (saved crypto) of the user", tags=["SaaS"])
+async def remove_starred_symbol(symbol: str, user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
+    _, user_id = user_credentials
+
+    await crud.delete_starred_crypto(user_id=user_id, symbol=symbol)
+
+    return Response(status_code=204)
+
+@app.get("/user/symbol-detail/{symbol}", description="### See simbol  whether is **Starred** or it's **blocked** to trade\n\n This function is allowed for registered users only.\n\nFuture outputs: How many **liquidity** needs in this operation or in persentage", tags=["SaaS"])
+async def get_main_panle_crypto(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], symbol: str):
+    _, user_id = user_credentials
+
+    # Get whether is starred or not
+    _is_starred_crypto = await crud.is_starred_crypto(user_id=user_id, symbol=symbol)
+
+    # Get whether is blocked to trade or no
+
+    return {
+        "is_starred": _is_starred_crypto,
+        "is_blocked": False # Crypto blocked to trade
+    }
+
+
 
 
 @app.get("/accounts/users", description="### Get all the asociated accounts to a user\n\nThese accounts can be both trading or sub-account", tags=["Accounts"], response_model=List[dict])
@@ -434,27 +504,14 @@ async def set_main_trading_account(user_credentials: Annotated[tuple[dict, str],
 
     return Response(status_code=response)
 
-@app.delete("/remove_starred_symbol/{symbol}", description="### Remove starred symbol (saved crypto) of the user", tags=["SaaS"])
-async def remove_starred_symbol(symbol: str, user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
-    _, user_id = user_credentials
+@app.delete("/account/{account_id}", description="### Delete an asociated exchange account", tags=["Accounts"])
+async def delete_account(account_id: str):
+    # user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]
+    # _, user_id = user_credentials
 
-    await crud.delete_starred_crypto(user_id=user_id, symbol=symbol)
+    await crud.delete_account(account_id=account_id)
 
     return Response(status_code=204)
-
-@app.get("/get_main_panle_crypto/{symbol}", description="### See whether is **Starred** or it's **blocked** to trade\n\n This function is allowed for registered users only.\n\nFuture outputs: How many **liquidity** needs in this operation or in persentage", tags=["SaaS"])
-async def get_main_panle_crypto(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], symbol: str):
-    _, user_id = user_credentials
-
-    # Get whether is starred or not
-    _is_starred_crypto = await crud.is_starred_crypto(user_id=user_id, symbol=symbol)
-
-    # Get whether is blocked to trade or no
-
-    return {
-        "is_starred": _is_starred_crypto,
-        "is_blocked": False # Crypto blocked to trade
-    }
 
 
 @app.get("/get_scheduled_cryptos", description="### See how many cryptos are opened or scheduled to be opened or closed (detailed data)", tags=["SaaS"])

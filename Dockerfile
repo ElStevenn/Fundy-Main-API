@@ -1,12 +1,11 @@
 # Use the official Python image from the Docker Hub
-FROM python:3.12-slim
+FROM python:3
 
 # Set the working directory in the container
 WORKDIR /
 
 # Install pip packages directly
-RUN pip install --no-cache-dir fastapi aiohttp uvicorn pydantic requests schedule bs4 lxml pytz httpx python-dotenv redis pandas apscheduler sqlalchemy alembic pyjwt asyncpg scipy cryptography
-
+RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code into the container
 COPY . .
 

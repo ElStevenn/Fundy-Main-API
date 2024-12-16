@@ -3,7 +3,8 @@ src/.env
 .history
 *security
 
-.terraform.lock.hcl
+*.terraform.lock.hcl
 .terraform
+*sensitive.tfvars
 
-*__pycache__
+*__pycache__ 

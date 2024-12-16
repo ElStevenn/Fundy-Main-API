@@ -562,8 +562,30 @@ async def get_whole_user(session: AsyncSession, user_id: str):
         "avariable_emails": user_emails
     }
 
+@db_connection
+async def delete_user_account(session: AsyncSession, user_id: str):
+    all_accounts = await get_all_accounts(user_id=user_id)
 
-# USER HISTORICAL SEARCH
+    # Delete all asociated accounts
+    await asyncio.gather(*(delete_account(account_id=account["account_id"]) for account in all_accounts))
+
+    # Delete user data
+    deletion_tasks = [
+        session.execute(delete(UserConfiguration).where(UserConfiguration.user_id == user_id)),
+        session.execute(delete(GoogleOAuth).where(GoogleOAuth.user_id == user_id)),
+        session.execute(delete(StarredCryptos).where(StarredCryptos.user_id == user_id)),
+        session.execute(delete(HistoricalSearchedCryptos).where(HistoricalSearchedCryptos.user_id == user_id)),
+        session.execute(delete(MonthlySubscription).where(MonthlySubscription.user_id == user_id)),
+    ]
+    await asyncio.gather(*deletion_tasks)
+
+    # Delete user record and commit
+    await session.execute(delete(Users).where(Users.id == user_id))
+    await session.commit()
+
+    return 200
+
+# - - - - USER HISTORICAL SEARCH - - - - - 
 @db_connection
 async def add_new_searched_crypto(session: AsyncSession, user_id: str, symbol: str, name: str, picture_url: str):
     try:
@@ -720,12 +742,15 @@ async def get_all_accounts(session: AsyncSession, user_id: str):
     """Save trading account"""
 
     # Check if the trading account doesn't have the 
-    result = await session.execute(
-        select(Account)
-        .where(
-            Account.user_id == user_id,
+    try:
+        result = await session.execute(
+            select(Account)
+            .where(
+                Account.user_id == user_id,
+            )
         )
-    )
+    except DBAPIError:
+        raise HTTPException(status_code=404, detail="User not found")
 
     accounts = result.scalars().all()
 
@@ -779,8 +804,32 @@ async def set_trading_account(session: AsyncSession, user_id: str, account_id: s
         await session.rollback()
         raise
 
+@db_connection
+async def delete_account(session: AsyncSession, account_id: str):
+    # Delete credentials
+    await session.execute(
+        delete(UserCredentials)
+        .where(UserCredentials.account_id == account_id)
+    )    
 
+    # Delete Risk Management
+    await session.execute(
+        delete(RiskManagement)
+        .where(RiskManagement.account_id == account_id)
+    )
 
+    # Dete historical PNL
+    await session.execute(
+        delete(Historical_PNL)
+        .where(Historical_PNL.account_id == account_id)
+    )
+
+    # Delete account
+    await session.execute(
+        delete(Account)
+        .where(Account.account_id == account_id)
+    )
+    
 
 @db_connection
 async def get_main_trading_account(session: AsyncSession, user_id):
@@ -875,8 +924,8 @@ async def delete_starred_crypto(session: AsyncSession, user_id: str, symbol: str
 
 async def main_tesings():
    
-    res = await get_account_id('sfukinguay@gmail.com')
-    print("pretty result -> ",res)
+    res = await get_all_accounts("49898f05-bc00-4d4b-87fd12885b8cf28"); print("all account -> ",res)
+    res2 = await delete_user_account("49898f05-bc00-4d4b-87fd-212885b8cf28")
 
 if __name__ == "__main__":
     asyncio.run(main_tesings())

@@ -5,25 +5,25 @@ services:
     image: postgres:latest
     container_name: postgres_db
     environment:
-      POSTGRES_DB: schedule_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mierda69
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+    - postgres_data:/var/lib/postgresql/data
     networks:
-      - my_network
+    - my_network
     ports:
-      - "5432:5432"
+    - "5432:5432"
 
   redis:
     image: redis:latest
     container_name: redis_tasks
     volumes:
-      - data_volume:/data
+    - redis_data:/data
     networks:
-      - my_network
+    - my_network
     ports:
-      - "6378:6379"
+    - "6379:6379"
 
   scheduler:
     build:
@@ -31,16 +31,20 @@ services:
       dockerfile: Dockerfile
     container_name: scheduler_v1
     depends_on:
-      - redis
+    - postgres
+    - redis
     networks:
-      - my_network
+    - my_network
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis_tasks:6379
     ports:
-      - "80:80"
-
-
+    - "80:80"
 
 volumes:
-  data_volume:
+  postgres_data:
+  redis_data:
+
 
 networks:
   my_network:

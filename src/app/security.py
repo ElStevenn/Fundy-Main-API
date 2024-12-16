@@ -17,11 +17,12 @@ TOKEN_EXPIRE_DAYS = 30
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-def encode_session_token(user_id: str):
+def encode_session_token(user_id: str, **kwargs):
     expiration = datetime.utcnow() + timedelta(days=TOKEN_EXPIRE_DAYS)
     payload = {
         "sub": user_id,  
-        "exp": expiration 
+        "exp": expiration,
+        **kwargs
     }
     token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=ALGORITHM)
     return token
