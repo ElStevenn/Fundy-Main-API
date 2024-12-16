@@ -7,4 +7,4 @@ src/.env
 .terraform
 *sensitive.tfvars
 
-*__pycache__ 
+*__pycache__ .terraform/
