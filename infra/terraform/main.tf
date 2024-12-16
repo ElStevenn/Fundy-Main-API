@@ -87,15 +87,21 @@ resource "aws_instance" "main_api_project" {
     git commit -m "${var.commit_message}" &&
     git push -u origin main
   EOT
-  }
-
-  provisioner "file" {
-    source = "/tmp/main-api.tar.gz"
-    destination = "/home/ubuntu/main-api.tar.gz"
 
     connection {
       type = "ssh"
+      user = "ubuntu"
+      private_key = file("../../src/security/instance_key")
+      host = self.public_ip
+    }
+  }
 
+  provisioner "file" {
+    source = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/scripts"
+    destination = "/home/ubuntu/scripts"
+
+    connection {
+      type = "ssh"
       user = "ubuntu"
       private_key = file("../../src/security/instance_key")
       host = self.public_ip
@@ -105,8 +111,6 @@ resource "aws_instance" "main_api_project" {
   provisioner "remote-exec" {
     inline = [
       "cd /home/ubuntu",
-      "if [ ! -d 'Main_API_Secret_Project' ]; then git clone https://github.com/your-repo/Main_API_Secret_Project.git; else cd Main_API_Secret_Project && git pull; fi",
-      "chmod +x /home/ubuntu/Main_API_Secret_Project/scripts/*",
       ""
     ]
 
