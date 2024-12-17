@@ -59,6 +59,14 @@ data "aws_iam_instance_profile" "cli_permissions" {
   name = "cli_permissions"
 }
 
+resource "aws_eip" "main_api_eip" {
+  instance = aws_instance.main_api_project.id
+
+  tags = {
+    Name = "Trade Visionary Main API EIP"
+  }
+}
+
 # EC2 Instance definition with existing Security Group
 resource "aws_instance" "main_api_project" {
   ami                    = var.ami_id
@@ -109,6 +117,8 @@ resource "aws_instance" "main_api_project" {
     }
   } 
 
+
+
   provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ubuntu/scripts/*",
@@ -134,4 +144,11 @@ resource "aws_instance" "main_api_project" {
       host = self.public_ip
     }
   } 
+
+}
+
+# Output the Elastic IP
+output "elastic_ip" {
+  value       = aws_eip.main_api_eip.public_ip
+  description = "The Elastic IP address associated with the EC2 instance."
 }

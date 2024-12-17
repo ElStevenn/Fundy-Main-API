@@ -19,6 +19,8 @@ read response
 if [ "$response" == "y" ]; then
     # Build and run the application container
     docker build -t $image_name .
+
+    # Run the application container on the custom network and expose port 8000
     docker run -d -p 8000:8000 --name $container_name --network $network_name $image_name
 
     echo "Application container '$container_name' is up and running."
