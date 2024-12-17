@@ -60,11 +60,16 @@ data "aws_iam_instance_profile" "cli_permissions" {
 }
 
 resource "aws_eip" "main_api_eip" {
-  instance = aws_instance.main_api_project.id
+  domain = "vpc"
 
   tags = {
     Name = "Trade Visionary Main API EIP"
   }
+}
+
+resource "aws_eip_association" "main_api_eip_assoc" {
+  instance_id   = aws_instance.main_api_project.id
+  allocation_id = aws_eip.main_api_eip.id
 }
 
 # EC2 Instance definition with existing Security Group
