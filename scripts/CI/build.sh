@@ -6,6 +6,11 @@ SECURITY_PATH="/home/ubuntu/Fundy-Main-API/src/security"
 PRIVATE_KEY="$SECURITY_PATH/private_key.pem"
 PUBLIC_KEY="$SECURITY_PATH/public_key.pem"
 
+DOMAIN="pauservices.top"
+EMAIL="your-email@example.com"  # Replace with a valid email
+NGINX_CONF="/etc/nginx/sites-available/fundy_api"
+NGINX_ENABLED="/etc/nginx/sites-enabled/fundy_api"
+
 # Ensure security directory exists
 if [ ! -d "$SECURITY_PATH" ]; then
     mkdir -p "$SECURITY_PATH"
@@ -38,27 +43,27 @@ if [ -f "$config" ]; then
     jq '.api = false' "$config" > temp.json && mv temp.json "$config"
 fi
 
-# Update and install Nginx and Certbot
+# Install Nginx and Certbot
 sudo apt-get update
 sudo apt-get install -y nginx certbot python3-certbot-nginx
 
-# Ensure firewall allows HTTPS (optional, depending on your firewall config)
+# Allow Nginx full profile if using UFW firewall
 sudo ufw allow 'Nginx Full' || true
 
 # Build the Docker image
 cd /home/ubuntu/Fundy-Main-API || exit 1
 docker build -t "$image_name" .
 
-# Run the application container internally on 8000
+# Run the application container (internal mapping to localhost:8000)
 docker run -d --name "$container_nme" --network "$network_name" -p 127.0.0.1:8000:8000 "$image_name"
 
-NGINX_CONF="/etc/nginx/sites-available/fundy_api"
+# Create a basic HTTP config first
 if [ ! -f "$NGINX_CONF" ]; then
     echo "Creating Nginx configuration for HTTP..."
     sudo bash -c "cat > $NGINX_CONF" <<EOL
 server {
     listen 80;
-    server_name pauservices.top www.pauservices.top;
+    server_name $DOMAIN www.$DOMAIN;
 
     location / {
         proxy_pass http://127.0.0.1:8000;
@@ -69,23 +74,54 @@ server {
     }
 }
 EOL
-    sudo ln -s /etc/nginx/sites-available/fundy_api /etc/nginx/sites-enabled/
+    sudo ln -sf $NGINX_CONF $NGINX_ENABLED
     sudo rm -f /etc/nginx/sites-enabled/default
 fi
 
 # Test and restart Nginx
 sudo nginx -t && sudo systemctl restart nginx
 
-# Obtain SSL certificates and let Certbot configure Nginx for HTTPS
-if [ ! -d "/etc/letsencrypt/live/pauservices.top" ]; then
-    echo "Generating SSL certificate for pauservices.top and www.pauservices.top..."
-    sudo certbot --nginx -d pauservices.top -d www.pauservices.top --non-interactive --agree-tos -m your-email@example.com
+# Obtain SSL certificates and configure Nginx for HTTPS using Certbot
+if [ ! -d "/etc/letsencrypt/live/$DOMAIN" ]; then
+    echo "Generating SSL certificate for $DOMAIN and www.$DOMAIN..."
+    # Certbot should automatically edit the config to use SSL
+    sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos -m $EMAIL
 else
     echo "SSL certificate already exists. Skipping Certbot."
 fi
 
-# Reload Nginx with SSL configuration
-sudo systemctl reload nginx
+# After Certbot run, ensure we have an SSL config
+if ! grep -q "listen 443 ssl" "$NGINX_CONF"; then
+    echo "Certbot did not configure SSL automatically. Manually configuring SSL..."
+    # Manually configure the Nginx SSL server block
+    sudo bash -c "cat > $NGINX_CONF" <<EOL
+server {
+    listen 80;
+    server_name $DOMAIN www.$DOMAIN;
+    # Redirect all HTTP to HTTPS
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name $DOMAIN www.$DOMAIN;
+
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOL
+    sudo nginx -t && sudo systemctl reload nginx
+fi
 
 # Update the API flag in config if it exists
 if [ -f "$config" ]; then
@@ -97,4 +133,4 @@ if [ -f "$config" ]; then
     fi
 fi
 
-echo "Setup complete. Your application should now be accessible via https://pauservices.top/"
+echo "Setup complete. Your application should now be accessible via https://$DOMAIN/"
