@@ -88,14 +88,20 @@ resource "aws_instance" "main_api_project" {
     delete_on_termination = true
   }
 
+  lifecycle {
+    ignore_changes = [ami] # Prevent Terraform from recreating due to AMI drift
+  }
+
   provisioner "local-exec" {
-   command = <<EOT
-    cd .. &&
-    cd .. &&
-    git add . &&
-    git commit -m "${var.commit_message}" &&
-    git push -u origin main
-  EOT
+    command = <<EOT
+      cd .. &&
+      cd .. &&
+      git add . &&
+      git commit -m "${var.commit_message}" &&
+      git push -u origin main
+    EOT
+  }
+
 
     connection {
       type = "ssh"
@@ -103,7 +109,7 @@ resource "aws_instance" "main_api_project" {
       private_key = file("../../src/security/instance_key")
       host = self.public_ip
     }
-  }
+  
 
   provisioner "file" {
     source = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/scripts"
@@ -116,8 +122,6 @@ resource "aws_instance" "main_api_project" {
       host = self.public_ip
     }
   } 
-
-
 
   provisioner "remote-exec" {
     inline = [
@@ -144,7 +148,7 @@ resource "aws_instance" "main_api_project" {
       host = self.public_ip
     }
   } 
-
+  
 }
 
 # Output the Elastic IP

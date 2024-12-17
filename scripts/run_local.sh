@@ -26,10 +26,15 @@ if [ "$response" == "y" ]; then
     echo "Application container '$container_name' is up and running."
 
     echo "Do you want to see the logs? (y/n)"
+
+    terraform taint aws_instance.main_api_project
+
+
     read response
     if [ "$response" == "y" ]; then
         docker logs --follow $container_name
     fi
+
 
 else
     echo "Deployment aborted."
