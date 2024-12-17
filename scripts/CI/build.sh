@@ -34,20 +34,24 @@ network_name="my_network"
 # Stop and remove the application container if it exists
 docker container stop "$container_nme" >/dev/null 2>&1
 docker container rm "$container_nme" >/dev/null 2>&1
-jq '.api = false' "$config" > temp.json && mv temp.json "$config"
+if [ -f "$config" ]; then
+    jq '.api = false' "$config" > temp.json && mv temp.json "$config"
+fi
 
 # Update and install Nginx and Certbot
 sudo apt-get update
 sudo apt-get install -y nginx certbot python3-certbot-nginx
 
+# Ensure firewall allows HTTPS (optional, depending on your firewall config)
+sudo ufw allow 'Nginx Full' || true
+
 # Build the Docker image
-cd /home/ubuntu/Fundy-Main-API || exit
+cd /home/ubuntu/Fundy-Main-API || exit 1
 docker build -t "$image_name" .
 
-# Run the application container on the custom network, listening internally on 8000
-docker run -d -p 8000:8000 --name "$container_nme" --network "$network_name" "$image_name"
+# Run the application container internally on 8000
+docker run -d --name "$container_nme" --network "$network_name" -p 127.0.0.1:8000:8000 "$image_name"
 
-# Create Nginx server block for HTTP only first (Certbot will adjust it for SSL)
 NGINX_CONF="/etc/nginx/sites-available/fundy_api"
 if [ ! -f "$NGINX_CONF" ]; then
     echo "Creating Nginx configuration for HTTP..."
@@ -57,7 +61,7 @@ server {
     server_name pauservices.top www.pauservices.top;
 
     location / {
-        proxy_pass http://127.0.0.1:8000; 
+        proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -80,10 +84,10 @@ else
     echo "SSL certificate already exists. Skipping Certbot."
 fi
 
-# Ensure Nginx is reloaded with new config
+# Reload Nginx with SSL configuration
 sudo systemctl reload nginx
 
-# Update the API flag in config
+# Update the API flag in config if it exists
 if [ -f "$config" ]; then
     if [[ -s "$config" ]]; then
         API=$(jq -r '.api' "$config")

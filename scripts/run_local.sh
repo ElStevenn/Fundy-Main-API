@@ -36,8 +36,9 @@ if [ "$response" == "y" ]; then
     # terraform destroy -target aws_instance.main_api_project --var-file="sensitive.tfvars"
     # terraform apply --var-file="sensitive.tfvars"
 
-    # Restart
-    # terraform apl
+    # Commit changes
+    # terraform apply -refresh-only
+
     
 else
     echo "Deployment aborted."
