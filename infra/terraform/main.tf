@@ -99,6 +99,7 @@ resource "aws_instance" "main_api_project" {
       git add . &&
       git commit -m "${var.commit_message}" &&
       git push -u origin main
+      
     EOT
   }
 
