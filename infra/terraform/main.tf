@@ -83,6 +83,7 @@ resource "aws_instance" "main_api_project" {
   provisioner "local-exec" {
    command = <<EOT
     cd .. &&
+    cd .. &&
     git add . &&
     git commit -m "${var.commit_message}" &&
     git push -u origin main

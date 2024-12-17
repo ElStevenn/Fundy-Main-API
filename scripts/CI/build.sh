@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Paths
-PRIVATE_KEY="/home/ubuntu/Main_API_Secret_Project/src/security/private_key.pem"
-PUBLIC_KEY="/home/ubuntu/Main_API_Secret_Project/src/security/public_key.pem"
+PRIVATE_KEY="/home/ubuntu/Fundy-Main-API/src/security/private_key.pem"
+PUBLIC_KEY="/home/ubuntu/Fundy-Main-API/src/security/public_key.pem"
 
 
 # Creaste public and private key
@@ -16,8 +16,8 @@ else
     echo "Private key already exists. Skipping key generation."
 fi
 # Create .env file
-if [ ! -f "/home/ubuntu/Main_API_Secret_Project/src/.env" ]; then
-    touch /home/ubuntu/Main_API_Secret_Project/src/.env
+if [ ! -f "/home/ubuntu/Fundy-Main-API/src/.env" ]; then
+    touch /home/ubuntu/Fundy-Main-API/src/.env
 fi
 
 
@@ -31,7 +31,7 @@ docker container stop "$container_nme"
 docker container rm "$container_nme"
 
 # Build image
-cd /home/ubuntu/Main_API_Secret_Project
+cd /home/ubuntu/Fundy-Main-API
 docker build -t "$image_name" .
 
 # Run the application container on the custom network and expose port 80
