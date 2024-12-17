@@ -290,10 +290,11 @@ async def google_callback(code: str):
         return response
 
 
-@app.get("/historical_founding_rate/{symbol}", description="Get historical founing rate of a crypto", tags=["Metadata User"])
+@app.get("/historical_founding_rate/{symbol}", description="Get historical founing rate of a crypto", tags=["Metadata User"], deprecated=True)
 async def get_historical_founding_rate(symbol: str):
-    historical_founding_rate = await bitget_client.get_historical_funding_rate(symbol)
-    return historical_founding_rate
+
+    # historical_founding_rate = await bitget_client.get_historical_funding_rate(symbol)
+    return HTMLResponse(status_code=401, content="Service not suported here")
 
 @app.post("/search/new", description="### Add new searched crypto to historical \n\n - Needed parameter: **symbol**", tags=["Metadata User"])
 async def save_new_crypto(

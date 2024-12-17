@@ -107,21 +107,31 @@ resource "aws_instance" "main_api_project" {
       private_key = file("../../src/security/instance_key")
       host = self.public_ip
     }
+  } 
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /home/ubuntu/scripts/*",
+      "bash /home/ubuntu/scripts/CI/source.sh"
+    ]
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file("../../src/security/instance_key")
+      host        = self.public_ip
+    }
   }
 
-provisioner "remote-exec" {
-  inline = [
-    "chmod +x /home/ubuntu/scripts/*",
-    "bash /home/ubuntu/scripts/CI/source.sh"
-  ]
-  connection {
-    type        = "ssh"
-    user        = "ubuntu"
-    private_key = file("../../src/security/instance_key")
-    host        = self.public_ip
-  }
-}
+  # Copy the .env file to the server
+  provisioner "file" {
+    source = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/src/.env"
+    destination = "/home/ubuntu/Fundy-Main-API/src/.env"
 
-
-
+    connection {
+      type = "ssh"
+      user = "ubuntu"
+      private_key = file("../../src/security/instance_key")
+      host = self.public_ip
+    }
+  } 
 }

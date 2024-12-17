@@ -5,6 +5,10 @@ fastapi
 aiohttp
 uvicorn
 pydantic
+pydantic[email]
+python-multipart
+pandas
+numpy
 requests
 schedule
 beautifulsoup4

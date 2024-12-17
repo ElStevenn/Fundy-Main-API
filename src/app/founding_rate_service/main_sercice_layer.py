@@ -5,7 +5,7 @@ import pytz
 
 from src.app.founding_rate_service.bitget_layer import BitgetClient
 from src.app.founding_rate_service.schedule_layer import ScheduleLayer
-from src.app.redis_service import RedisService
+# from src.app.redis_service import RedisService
 from src.app.founding_rate_service.chart_analysis import FundingRateChart
 from src.config import (
     MIN_FOUNDING_RATE,
@@ -28,7 +28,7 @@ class FoundinRateService:
 
         # Initialize clients
         self.bitget_client = BitgetClient()
-        self.redis_service = RedisService()
+        # self.redis_service = RedisService()
         self.async_scheduler = ScheduleLayer(self.timezone)
 
     def get_next_execution_time(self, ans: bool = False) -> datetime:
@@ -244,18 +244,6 @@ class FoundinRateService:
 
         print(f"Scheduled to close short for {symbol} at {operation_close.strftime('%Y-%m-%d %H:%M:%S')}")
         asyncio.create_task(self._schedule_after_delay(delay_close, lambda: self.close_order(symbol)))
-
-    async def save_operation(self, symbol: str):
-        try:
-            print(f"Saving operation for {symbol}")
-            # Get Historical Pnl of the last operation | https://www.bitget.com/api-doc/contract/position/Get-History-Position
-            position_pnl_data = await self.bitget_client.get_pnl_order(symbol)
-
-            # Save data
-            self.redis_service.add_new_pnl(position_pnl_data)
-            print(f"Operation data saved for {symbol}")
-        except Exception as e:
-            print(f"Error saving operation for {symbol}: {e}")
 
     async def start_service(self):
         if self.status == 'running':

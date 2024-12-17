@@ -32,10 +32,10 @@ docker container rm "$container_nme"
 
 # Build image
 cd /home/ubuntu/Fundy-Main-API
-docker build -t "$image_name" .
+docker build -t "$image_name"/home/ubuntu/Fundy-Main-API
 
 # Run the application container on the custom network and expose port 80
-docker run -d -p 8080:80 --name "$container_nme" --network "$network_name" "$image_name"
+docker run -d -p 8000:8000 --name "$container_nme" --network "$network_name" "$image_name"
 
 
 
