@@ -1,66 +1,63 @@
 #!/bin/bash
 
-# Paths
-config="/home/ubuntu/scripts/config.json"
-SECURITY_PATH="/home/ubuntu/Fundy-Main-API/src/security"
+set -e
+
+# Adjust these variables
+DOMAIN="pauservices.top"
+EMAIL="paumat17@gmail.com" 
+APP_DIR="/home/ubuntu/Fundy-Main-API"
+CONFIG="/home/ubuntu/scripts/config.json"
+
+SECURITY_PATH="$APP_DIR/src/security"
 PRIVATE_KEY="$SECURITY_PATH/private_key.pem"
 PUBLIC_KEY="$SECURITY_PATH/public_key.pem"
+IMAGE_NAME="fundy_main_api"
+CONTAINER_NAME="fundy_main_api_v1"
+NETWORK_NAME="my_network"
+NGINX_CONF_DIR="/etc/nginx/sites-available"
+NGINX_ENABLED_DIR="/etc/nginx/sites-enabled"
+NGINX_CONF="$NGINX_CONF_DIR/fundy_api"
 
-DOMAIN="pauservices.top"
-EMAIL="your-email@example.com"  # Replace with a valid email
-NGINX_CONF="/etc/nginx/sites-available/fundy_api"
-NGINX_ENABLED="/etc/nginx/sites-enabled/fundy_api"
-
-# Ensure security directory exists
+# Ensure directories
+sudo mkdir -p $NGINX_CONF_DIR $NGINX_ENABLED_DIR
 if [ ! -d "$SECURITY_PATH" ]; then
     mkdir -p "$SECURITY_PATH"
 fi
 
-# Create public and private keys if they do not exist
+# Generate keys if needed
 if [ ! -f "$PRIVATE_KEY" ]; then
-    echo "Private key not found. Generating private key..."
+    echo "Generating private key..."
     openssl genpkey -algorithm RSA -out "$PRIVATE_KEY" -pkeyopt rsa_keygen_bits:4096
-    echo "Extracting public key from the private key..."
+    echo "Generating public key..."
     openssl rsa -pubout -in "$PRIVATE_KEY" -out "$PUBLIC_KEY"
-else
-    echo "Private key already exists. Skipping key generation."
 fi
 
-# Create .env file if it doesn't exist
-if [ ! -f "/home/ubuntu/Fundy-Main-API/src/.env" ]; then
-    touch "/home/ubuntu/Fundy-Main-API/src/.env"
+# Ensure .env file
+[ ! -f "$APP_DIR/src/.env" ] && touch "$APP_DIR/src/.env"
+
+# Stop and remove existing container
+docker container stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+docker container rm "$CONTAINER_NAME" >/dev/null 2>&1 || true
+if [ -f "$CONFIG" ]; then
+    jq '.api = false' "$CONFIG" > temp.json && mv temp.json "$CONFIG"
 fi
 
-# Variables
-image_name="fundy_main_api"
-container_nme="fundy_main_api_v1"
-network_name="my_network"
-
-# Stop and remove the application container if it exists
-docker container stop "$container_nme" >/dev/null 2>&1
-docker container rm "$container_nme" >/dev/null 2>&1
-if [ -f "$config" ]; then
-    jq '.api = false' "$config" > temp.json && mv temp.json "$config"
-fi
-
-# Install Nginx and Certbot
-sudo apt-get update
+# Update packages and install Nginx, Certbot
+sudo apt-get update -y
 sudo apt-get install -y nginx certbot python3-certbot-nginx
 
-# Allow Nginx full profile if using UFW firewall
+# Allow Nginx through firewall if UFW is enabled
 sudo ufw allow 'Nginx Full' || true
 
-# Build the Docker image
-cd /home/ubuntu/Fundy-Main-API || exit 1
-docker build -t "$image_name" .
+# Build Docker image
+cd "$APP_DIR" || exit 1
+docker build -t "$IMAGE_NAME" .
 
-# Run the application container (internal mapping to localhost:8000)
-docker run -d --name "$container_nme" --network "$network_name" -p 127.0.0.1:8000:8000 "$image_name"
+# Run the container mapped to localhost:8000
+docker run -d --name "$CONTAINER_NAME" --network "$NETWORK_NAME" -p 127.0.0.1:8000:8000 "$IMAGE_NAME"
 
-# Create a basic HTTP config first
-if [ ! -f "$NGINX_CONF" ]; then
-    echo "Creating Nginx configuration for HTTP..."
-    sudo bash -c "cat > $NGINX_CONF" <<EOL
+# Create basic HTTP config
+sudo bash -c "cat > $NGINX_CONF" <<EOL
 server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN;
@@ -74,31 +71,26 @@ server {
     }
 }
 EOL
-    sudo ln -sf $NGINX_CONF $NGINX_ENABLED
-    sudo rm -f /etc/nginx/sites-enabled/default
-fi
 
-# Test and restart Nginx
-sudo nginx -t && sudo systemctl restart nginx
+sudo ln -sf "$NGINX_CONF" "$NGINX_ENABLED_DIR/fundy_api"
+sudo rm -f /etc/nginx/sites-enabled/default || true
 
-# Obtain SSL certificates and configure Nginx for HTTPS using Certbot
+# Test Nginx configuration and restart
+sudo nginx -t
+sudo systemctl restart nginx
+
+# Obtain SSL certificate
 if [ ! -d "/etc/letsencrypt/live/$DOMAIN" ]; then
-    echo "Generating SSL certificate for $DOMAIN and www.$DOMAIN..."
-    # Certbot should automatically edit the config to use SSL
     sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos -m $EMAIL
-else
-    echo "SSL certificate already exists. Skipping Certbot."
 fi
 
-# After Certbot run, ensure we have an SSL config
+# If Certbot didn't update config, do it manually
 if ! grep -q "listen 443 ssl" "$NGINX_CONF"; then
-    echo "Certbot did not configure SSL automatically. Manually configuring SSL..."
-    # Manually configure the Nginx SSL server block
+    echo "Manually configuring SSL..."
     sudo bash -c "cat > $NGINX_CONF" <<EOL
 server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN;
-    # Redirect all HTTP to HTTPS
     return 301 https://\$host\$request_uri;
 }
 
@@ -120,15 +112,16 @@ server {
     }
 }
 EOL
-    sudo nginx -t && sudo systemctl reload nginx
+    sudo nginx -t
+    sudo systemctl reload nginx
 fi
 
-# Update the API flag in config if it exists
-if [ -f "$config" ]; then
-    if [[ -s "$config" ]]; then
-        API=$(jq -r '.api' "$config")
+# Update the API flag
+if [ -f "$CONFIG" ]; then
+    if [[ -s "$CONFIG" ]]; then
+        API=$(jq -r '.api' "$CONFIG")
         if [[ "$API" == "false" ]]; then
-            jq '.api = true' "$config" > temp.json && mv temp.json "$config"
+            jq '.api = true' "$CONFIG" > temp.json && mv temp.json "$CONFIG"
         fi
     fi
 fi
