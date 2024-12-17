@@ -3,7 +3,12 @@
 # Paths
 PRIVATE_KEY="/home/ubuntu/Fundy-Main-API/src/security/private_key.pem"
 PUBLIC_KEY="/home/ubuntu/Fundy-Main-API/src/security/public_key.pem"
+PATH="/home/ubuntu/Fundy-Main-API/src/security"
 
+
+if [ ! -d "$PATH" ]; then
+    mkdir "$PATH"
+fi
 
 # Creaste public and private key
 if [ ! -f "$PRIVATE_KEY" ]; then
@@ -32,10 +37,10 @@ docker container rm "$container_nme"
 
 # Build image
 cd /home/ubuntu/Fundy-Main-API
-docker build -t "$image_name"/home/ubuntu/Fundy-Main-API
+docker build -t "$image_name" /home/ubuntu/Fundy-Main-API
 
 # Run the application container on the custom network and expose port 80
-docker run -d -p 8000:8000 --name "$container_nme" --network "$network_name" "$image_name"
+docker run -d -p 8000:80 --name "$container_nme" --network "$network_name" "$image_name"
 
 
 
