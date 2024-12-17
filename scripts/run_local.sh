@@ -35,7 +35,9 @@ if [ "$response" == "y" ]; then
         docker logs --follow $container_name
     fi
 
-
+    # terraform destroy -target aws_instance.main_api_project --var-file="sensitive.tfvars"
+    # 
+    
 else
     echo "Deployment aborted."
 fi
