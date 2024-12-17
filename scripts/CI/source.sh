@@ -8,6 +8,7 @@ volumes_name="my_volumes"
 postgres_image="my_postgres"
 postgres="my_postgres_v1"
 
+
 # Configure
 if [ -f "$config" ]; then
     echo "Config file found"

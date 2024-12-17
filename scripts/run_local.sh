@@ -27,8 +27,6 @@ if [ "$response" == "y" ]; then
 
     echo "Do you want to see the logs? (y/n)"
 
-    terraform taint aws_instance.main_api_project
-
 
     read response
     if [ "$response" == "y" ]; then
@@ -37,6 +35,9 @@ if [ "$response" == "y" ]; then
 
     # terraform destroy -target aws_instance.main_api_project --var-file="sensitive.tfvars"
     # terraform apply --var-file="sensitive.tfvars"
+
+    # Restart
+    # terraform apl
     
 else
     echo "Deployment aborted."
