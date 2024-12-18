@@ -104,14 +104,15 @@ app = FastAPI(
     lifespan=lifespan,
     version="1.3.4",
     contact={"name": "Pau Mateu", "url": "https://paumateu.com/","email": "paumat17@gmail.com"},
-    servers=[{"url":"http://localhost:8000/", "description":"EU"}]
+    servers=[{"url":"http://pauservices.top/", "description":"Spain"}, {"url":"http://localhost:8000/", "description":"localhost"}]
 )
 
 origins = [
     "http://0.0.0.0:80",
     "http://localhost:8000",
     "http://3.143.209.3/",
-    "http://localhost"
+    "http://localhost",
+    "http://pauservices.top"
 ]
 
 app.add_middleware(

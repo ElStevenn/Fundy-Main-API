@@ -42,13 +42,15 @@ if [ -f "$config" ]; then
             echo "Setting up postgres"
             docker pull postgres:13.2
             docker run -d \
-                --name "$postgres" \
-                --network "$network_name" \
-                -e POSTGRES_PASSWORD=test_password \
-                -e POSTGRES_USER=test_user \
-                -e POSTGRES_DB=main_db \
-                -v "$volumes_name":/var/lib/postgresql/data \
-                postgres:13.2
+            --name "$postgres" \
+            --network "$network_name" \
+            -e POSTGRES_PASSWORD=test_password \
+            -e POSTGRES_USER=test_user \
+            -e POSTGRES_DB=main_db \
+            -v "$volumes_name":/var/lib/postgresql/data \
+            -p 5432:5432 \
+            postgres:13.2
+
 
             jq '.postgres = true' "$config" > temp.json && mv temp.json "$config"
         fi
