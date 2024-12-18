@@ -67,9 +67,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Fundy-Main-API",
     description=(
-        "The **Trade Visionary Main API** is a backend solution for managing trading accounts, user profiles, and cryptocurrency data.\n"
+        "The **Fundy Main API** is a backend solution for managing trading accounts, user profiles, and cryptocurrency data.\n"
         "It ensures secure and efficient handling of sensitive data while offering tools for scheduling and automation.\n"
-        "Designed for reliability and scalability, this API serves as the backbone for the **Trade Visionary** application.\n\n"
+        "Designed for reliability and scalability, this API serves as the backbone for the **FUNDY** application.\n\n"
 
         "## **Core Capabilities**\n\n"
 
