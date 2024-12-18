@@ -56,7 +56,7 @@ docker build -t "$IMAGE_NAME" .
 # Run the container mapped to localhost:8000
 docker run -d --name "$CONTAINER_NAME" --network "$NETWORK_NAME" -p 127.0.0.1:8000:8000 "$IMAGE_NAME"
 
-# Create basic HTTP config
+# Create a temporary HTTP server block for initial certificate issuance
 sudo bash -c "cat > $NGINX_CONF" <<EOL
 server {
     listen 80;
@@ -79,21 +79,13 @@ sudo rm -f /etc/nginx/sites-enabled/default || true
 sudo nginx -t
 sudo systemctl restart nginx
 
-# Obtain SSL certificate
+# Obtain SSL certificate using HTTP-01 challenge
 if [ ! -d "/etc/letsencrypt/live/$DOMAIN" ]; then
     sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos -m $EMAIL
 fi
 
-# If Certbot didn't update config, do it manually
-if ! grep -q "listen 443 ssl" "$NGINX_CONF"; then
-    echo "Manually configuring SSL..."
-    sudo bash -c "cat > $NGINX_CONF" <<EOL
-server {
-    listen 80;
-    server_name $DOMAIN www.$DOMAIN;
-    return 301 https://\$host\$request_uri;
-}
-
+# Now that we have the certificate, reconfigure Nginx to only listen on HTTPS (443)
+sudo bash -c "cat > $NGINX_CONF" <<EOL
 server {
     listen 443 ssl;
     server_name $DOMAIN www.$DOMAIN;
@@ -104,7 +96,7 @@ server {
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     location / {
-        proxy_pass http://127.0.0.1:8000;º
+        proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -112,11 +104,12 @@ server {
     }
 }
 EOL
-    sudo nginx -t
-    sudo systemctl reload nginx
-fi
 
-# Update the API flag
+# Remove any references to port 80, just serve on port 443 now
+sudo nginx -t
+sudo systemctl reload nginx
+
+# Update the API flag in config
 if [ -f "$CONFIG" ]; then
     if [[ -s "$CONFIG" ]]; then
         API=$(jq -r '.api' "$CONFIG")
@@ -126,4 +119,4 @@ if [ -f "$CONFIG" ]; then
     fi
 fi
 
-echo "Setup complete. Your application should now be accessible via https://$DOMAIN/"
+echo "Setup complete. Your application should now be accessible exclusively via https://$DOMAIN/ (port 443 only)."

@@ -130,7 +130,7 @@ resource "aws_instance" "main_api_project" {
     source      = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/src/.env"
     destination = "/home/ubuntu/Fundy-Main-API/src/.env"
 
-    connection {
+    connection {  
       type        = "ssh"
       user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
