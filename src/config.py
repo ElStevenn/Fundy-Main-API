@@ -34,7 +34,7 @@ GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', 'your-client-sercret')
 if HOST == 'mamadocomputer':
     GOOGLE_REDIRECT_URI = 'http://localhost:8000/oauth/google/callback'
 else:
-    GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost/google/callback')
+    GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', None)
 
 # SECURITY
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-jwt-secret-key')
