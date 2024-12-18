@@ -351,6 +351,11 @@ async def get_whole_user_profile(user_credentials: Annotated[tuple[dict, str], D
 
     return user_conf
 
+@app.put("/user/username/{new_username}", description="### Update user username", tags=["User"], )
+async def update_username(new_username: str, user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
+    _, user_id = user_credentials
+
+    return {}
 
 @app.post("/user/profile-configuration", tags=["User"])
 async def update_user_configuration(

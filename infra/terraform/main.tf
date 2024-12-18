@@ -58,21 +58,18 @@ data "aws_iam_instance_profile" "cli_permissions" {
 
 resource "aws_eip" "main_api_eip" {
   domain = "vpc"
-
   tags = {
     Name = "Trade Visionary Main API EIP"
   }
 }
 
-# EC2 Instance definition with existing Security Group
 resource "aws_instance" "main_api_project" {
   ami                    = var.ami_id
   instance_type          = "t3.medium"
   key_name               = aws_key_pair.instance_pub_key.key_name
   subnet_id              = var.subnet_id
   vpc_security_group_ids = [data.aws_security_group.paus-security-group.id]
-
-  iam_instance_profile = data.aws_iam_instance_profile.cli_permissions.name
+  iam_instance_profile   = data.aws_iam_instance_profile.cli_permissions.name
 
   tags = {
     Name = "Fundy Main API"
@@ -89,7 +86,7 @@ resource "aws_instance" "main_api_project" {
     ignore_changes = [ami] # Prevent Terraform from recreating due to AMI drift
   }
 
-  # This provisioner is just a local git push example before we do anything else.
+  # Push changes locally before proceeding
   provisioner "local-exec" {
     command = <<EOT
       cd .. &&
@@ -113,12 +110,12 @@ resource "aws_instance" "main_api_project" {
     }
   }
 
+  # Run source.sh after scripts are copied and before build.sh
   provisioner "remote-exec" {
-    
     inline = [
-          "chmod +x /home/ubuntu/scripts/*",
-          "bash /home/ubuntu/scripts/CI/source.sh"
-          ] 
+      "chmod +x /home/ubuntu/scripts/*",
+      "bash /home/ubuntu/scripts/CI/source.sh"
+    ]
 
     connection {
       type        = "ssh"
@@ -140,7 +137,6 @@ resource "aws_instance" "main_api_project" {
       host        = self.public_ip
     }
   }
-
 }
 
 # Associate the EIP after the instance is created
@@ -149,12 +145,13 @@ resource "aws_eip_association" "main_api_eip_assoc" {
   allocation_id = aws_eip.main_api_eip.id
 }
 
-# Run the final remote-exec commands only after EIP is associated
+# After EIP is associated, run build.sh using the Elastic IP
 resource "null_resource" "post_eip_setup" {
   depends_on = [aws_eip_association.main_api_eip_assoc]
 
   provisioner "remote-exec" {
     inline = [
+      "chmod +x /home/ubuntu/scripts/CI/build.sh",
       "bash /home/ubuntu/scripts/CI/build.sh"
     ]
 
