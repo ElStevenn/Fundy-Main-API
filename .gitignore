@@ -6,5 +6,8 @@ src/.env
 *.terraform.lock.hcl
 .terraform
 *sensitive.tfvars
+infra/terraform/terraform.tfstate
+infra/terraform/terraform.tfstate.backup
+infra/terraform/.terraform.tfstate.lock.info
 
 *__pycache__ .terraform/
