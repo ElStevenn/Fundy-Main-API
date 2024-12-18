@@ -113,6 +113,21 @@ resource "aws_instance" "main_api_project" {
     }
   }
 
+  provisioner "remote-exec" {
+    
+    inline = [
+          "chmod +x /home/ubuntu/scripts/*",
+          "bash /home/ubuntu/scripts/CI/source.sh"
+          ] 
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file("../../src/security/instance_key")
+      host        = self.public_ip
+    }
+  }
+
   # Copy the .env file to the server
   provisioner "file" {
     source      = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/src/.env"
@@ -140,8 +155,7 @@ resource "null_resource" "post_eip_setup" {
 
   provisioner "remote-exec" {
     inline = [
-      "chmod +x /home/ubuntu/scripts/*",
-      "bash /home/ubuntu/scripts/CI/source.sh"
+      "bash /home/ubuntu/scripts/CI/build.sh"
     ]
 
     connection {

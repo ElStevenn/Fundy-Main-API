@@ -67,7 +67,6 @@ if [ -f "$config" ]; then
         fi
 
         # Call Static code analysis -> Build Testing Application -> Run Tests | 
-        bash /home/ubuntu/scripts/CI/build.sh
 
     else
         echo "Config file is empty"
