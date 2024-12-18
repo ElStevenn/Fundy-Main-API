@@ -37,7 +37,7 @@ if [ "$response" == "y" ]; then
     # terraform apply --var-file="sensitive.tfvars"
 
     # Commit changes
-    # terraform apply -refresh-only
+    # terraform apply -target aws_instance.main_api_project --var-file="sensitive.tfvars"
 
     
 else
