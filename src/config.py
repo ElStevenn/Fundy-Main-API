@@ -7,7 +7,7 @@ load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-HOST = socket.gethostname()
+HOSTNAME = socket.gethostname()
 
 # Bitget
 BITGET_APIKEY = os.getenv('BITGET_APIKEY')
@@ -31,7 +31,7 @@ DB_HOST = os.getenv('DB_HOST', '0.0.0.0')
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', 'your-google-client-id')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', 'your-client-sercret')
 
-if HOST == 'mamadocomputer':
+if HOSTNAME == 'mamadocomputer':
     GOOGLE_REDIRECT_URI = 'http://localhost:8000/oauth/google/callback'
 else:
     GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', None)

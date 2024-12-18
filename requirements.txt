@@ -9,6 +9,7 @@ pydantic[email]
 python-multipart
 pandas
 numpy
+greenlet
 requests
 schedule
 beautifulsoup4
