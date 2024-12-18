@@ -73,7 +73,7 @@ resource "aws_instance" "main_api_project" {
 
   tags = {
     Name = "Fundy Main API"
-    Type = "User Handling"
+    Type = "Pau's architecture"
   }
 
   root_block_device {
