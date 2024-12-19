@@ -166,6 +166,12 @@ async def test_dirty_schedule(background_tasks: BackgroundTasks):
 
     return {"message": "in theory the function has been scheduled, look at the terminal :O"}
 
+@app.get("/get_tables", tags=['Testing'])
+async def get_tables():
+    from src.app.database.database import get_tables
+    tables = await get_tables()
+    return tables
+
 @app.get("/get_next_execution_time", tags=['Testing'])
 async def next_execution_time():
     return {"next_execution_time": founding_rate_service.next_execution_time}

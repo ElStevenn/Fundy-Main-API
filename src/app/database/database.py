@@ -17,6 +17,11 @@ async def create_tables():
         await conn.run_sync(Base.metadata.create_all)
         print("Tables created successfully")
 
+async def get_tables():
+    async with async_engine.begin() as conn:
+        tables = await conn.run_sync(Base.metadata.tables)  
+        return tables
+    
 
 if __name__ == "__main__":
     asyncio.run(create_tables())
