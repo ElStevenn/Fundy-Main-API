@@ -52,8 +52,8 @@ data "aws_security_group" "paus-security-group" {
   id   = "sg-0ceebb5821128f97d"
 }
 
-data "aws_iam_instance_profile" "cli_permissions" {
-  name = "cli_permissions"
+data "aws_iam_instance_profile" "ssm-fullacces" {
+  name = "ssm-fullacces"
 }
 
 resource "aws_eip" "main_api_eip" {
@@ -69,7 +69,7 @@ resource "aws_instance" "main_api_project" {
   key_name               = aws_key_pair.instance_pub_key.key_name
   subnet_id              = var.subnet_id
   vpc_security_group_ids = [data.aws_security_group.paus-security-group.id]
-  iam_instance_profile   = data.aws_iam_instance_profile.cli_permissions.name
+  iam_instance_profile   = data.aws_iam_instance_profile.ssm-fullacces.name
 
   tags = {
     Name = "Fundy Main API"
