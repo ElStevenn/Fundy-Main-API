@@ -66,8 +66,7 @@ if [ -f "$config" ]; then
         else
             cd /home/ubuntu/Fundy-Main-API
             git config --global --add safe.directory /home/ubuntu/Fundy-Main-API
-            git pull origin main
-            
+            git pull origin main  
         fi
 
         # Call Static code analysis -> Build Testing Application -> Run Tests | 

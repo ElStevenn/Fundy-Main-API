@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Fundy-Main-APIOINI REAL",
+    title="Fundy-Main-API",
     description=(
         "The **Fundy Main API** is a backend solution for managing trading accounts, user profiles, and cryptocurrency data.\n"
         "It ensures secure and efficient handling of sensitive data while offering tools for scheduling and automation.\n"
@@ -188,7 +188,7 @@ async def google_login():
     authorization_url, state = flow.authorization_url(
         access_type='offline',
         include_granted_scopes='true',
-        prompt='consent'  # Ensure refresh token is always returned
+        prompt='consent'
     )
     return RedirectResponse(authorization_url)
 
@@ -206,7 +206,7 @@ async def google_callback(code: str):
         decoded_token = jwt.decode(
             id_token,
             options={"verify_signature": False},
-            audience=GOOGLE_CLIENT_ID
+            audience=os.getenv("GOOGLE_CLIENT_ID")
         )
 
         user_email = decoded_token.get('email')
@@ -226,7 +226,7 @@ async def google_callback(code: str):
     user = await crud.check_if_user_exists(user_email)
     if not user:
         # Create new user
-        username = f"{str(user_name).lower().replace(' ','')}{random.randint(1000, 9999)}"
+        username = f"{user_name.lower().replace(' ','')}{random.randint(1000, 9999)}"
         new_user_id = await crud.create_new_user(
             username=username, name=user_name, surname=user_surname,
             email=user_email, url_picture=user_picture
@@ -273,26 +273,23 @@ async def google_callback(code: str):
         raise HTTPException(status_code=500, detail=f"Error generating session token: {str(e)}")
 
     # Redirect and set cookie
+    cookie_params = {
+        "key": "credentials",
+        "value": f"Bearer {session_token}",
+        "httponly": False,
+        "secure": FRONTEND_IP.startswith("https"),
+        "samesite": 'None',
+        "path": "/"
+    }
+
     if type_response == "login_user":
         response = RedirectResponse(f"{FRONTEND_IP}/dashboard")
-        response.set_cookie(
-            key="credentials",
-            value=f"Bearer {session_token}",
-            httponly=False,
-            secure=False,     # Change to True when using HTTPS
-            samesite='None'   # Allows cross-site
-        )
+        response.set_cookie(**cookie_params)
         return response
 
     elif type_response == "new_user":
         response = RedirectResponse(f"{FRONTEND_IP}/complete-register")
-        response.set_cookie(
-            key="credentials",
-            value=f"Bearer {session_token}",
-            httponly=False,
-            secure=False,     # Change to True when using HTTPS
-            samesite='None'
-        )
+        response.set_cookie(**cookie_params)
         return response
 
 @app.get("/historical_founding_rate/{symbol}", description="Get historical founing rate of a crypto", tags=["Metadata User"], deprecated=True)
