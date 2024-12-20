@@ -67,7 +67,7 @@ if [ -f "$config" ]; then
             cd /home/ubuntu/Fundy-Main-API
             git config --global --add safe.directory /home/ubuntu/Fundy-Main-API
             sleep 2
-            git pull origin main  
+
         fi
 
         # Call Static code analysis -> Build Testing Application -> Run Tests | 
@@ -79,3 +79,5 @@ if [ -f "$config" ]; then
 else
     echo "Config file not found"
 fi
+cd /home/ubuntu/Fundy-Main-API
+git pull origin main  
