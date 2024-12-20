@@ -1,6 +1,7 @@
 # main.py
 # Author: Pau Mateu
 # Developer email: paumat17@gmail.com
+# v: 1.3.5
 
 from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Depends, Query, UploadFile, Response
 from fastapi.staticfiles import StaticFiles

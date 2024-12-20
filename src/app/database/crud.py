@@ -221,15 +221,18 @@ async def create_google_oauth(session: AsyncSession, id: str, data: CreateGoogle
     return new_oauth
 
 @db_connection
-async def update_google_oauth(session: AsyncSession, oauth_id: str, data: UpdateGoogleOAuth):
+async def update_google_oauth(session: AsyncSession, user_id: str, data: UpdateGoogleOAuth):
     """
-    Update an existing GoogleOAuth record identified by its ID.
+    Update an existing GoogleOAuth record identified by its user_id.
+    If no record is found, returns a 404 error.
     """
-    # Fetch the existing record
-    result = await session.execute(select(GoogleOAuth).where(GoogleOAuth.id == oauth_id))
+    # Fetch the existing record by user_id
+    result = await session.execute(
+        select(GoogleOAuth).where(GoogleOAuth.user_id == user_id)
+    )
     oauth_record = result.scalar_one_or_none()
     if not oauth_record:
-        raise HTTPException(status_code=404, detail="GoogleOAuth record not found")
+        raise HTTPException(status_code=404, detail=f"GoogleOAuth record not found, user_id: {user_id}, data: {data.model_dump_json()}")
 
     # Update fields if provided
     if data.access_token is not None:
@@ -239,10 +242,12 @@ async def update_google_oauth(session: AsyncSession, oauth_id: str, data: Update
     if data.expires_at is not None:
         oauth_record.expires_at = data.expires_at
 
-    # No need to re-add since the object is already tracked
-    await session.flush()  # You can even try removing this if errors persist
-    await session.refresh(oauth_record)  # Optionally ensure it's refreshed
+    # Flush changes to the database
+    await session.flush()
+    await session.refresh(oauth_record)  # Refresh the object with the latest DB state
+    
     return oauth_record
+
 
 
 @db_connection
