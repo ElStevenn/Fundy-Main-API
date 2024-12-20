@@ -277,11 +277,11 @@ async def google_callback(code: str):
     cookie_params = {
         "key": "credentials",
         "value": f"Bearer {session_token}",
-        "httponly": False,
-        "secure": FRONTEND_IP.startswith("https"),
-        "samesite": 'None',
+        "httponly": False,  # So JS can read it
+        "secure": True,      # Ensure you're on HTTPS
+        "samesite": "None",
         "path": "/",
-        "domain": ".pauservices.top"
+        "domain": ".pauservices.top"  # Allows subdomains like fundy.pauservices.top to see the cookie
     }
 
     if type_response == "login_user":
