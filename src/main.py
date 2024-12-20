@@ -166,12 +166,6 @@ async def test_dirty_schedule(background_tasks: BackgroundTasks):
 
     return {"message": "in theory the function has been scheduled, look at the terminal :O"}
 
-@app.get("/get_tables", tags=['Testing'])
-async def get_tables():
-    from src.app.database.database import get_tables
-    tables = await get_tables()
-    return tables
-
 @app.get("/get_next_execution_time", tags=['Testing'])
 async def next_execution_time():
     return {"next_execution_time": founding_rate_service.next_execution_time}
@@ -200,13 +194,13 @@ async def google_login():
 
 @app.get("/oauth/google/callback", description="Oauth 2.0 callback", tags=["Authentication"])
 async def google_callback(code: str):
-    # Get full credentials
+    # Obtain full credentials
     try:
         credentials = get_credentials_from_code(code)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error obtaining credentials: {str(e)}")
     
-    # Get Name, Surname, picutre, username, user id....
+    # Decode the ID token
     id_token = credentials.id_token
     try:
         decoded_token = jwt.decode(
@@ -216,10 +210,10 @@ async def google_callback(code: str):
         )
 
         user_email = decoded_token.get('email')
-        user_name = decoded_token.get('given_name') 
-        user_surname = decoded_token.get('family_name') 
-        user_picture = decoded_token.get('picture') 
-        user_id = decoded_token.get('sub')  
+        user_name = decoded_token.get('given_name')
+        user_surname = decoded_token.get('family_name')
+        user_picture = decoded_token.get('picture')
+        user_id = decoded_token.get('sub')
         
         if not user_email:
             raise HTTPException(status_code=400, detail="Email not found in token")
@@ -228,15 +222,15 @@ async def google_callback(code: str):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid ID token")
 
-    # Create / Update credentials and permissions
+    # Check if user exists in the database
     user = await crud.check_if_user_exists(user_email)
-    if not user: 
-        # A new user has been created create the user and set default configuration
-        username = f"{str(user_name).lower().replace(" ","")}{random.randint(1000, 9999)}"
+    if not user:
+        # Create new user
+        username = f"{str(user_name).lower().replace(' ','')}{random.randint(1000, 9999)}"
         new_user_id = await crud.create_new_user(
             username=username, name=user_name, surname=user_surname,
             email=user_email, url_picture=user_picture
-            )
+        )
         
         new_creds = dbschemas.CreateGoogleOAuth(
             user_id=new_user_id,
@@ -244,11 +238,14 @@ async def google_callback(code: str):
             refresh_token=credentials.refresh_token,
             expires_at=credentials.expiry
         )
-        await crud.create_google_oauth(str(user_id), new_creds)
+        await crud.create_google_oauth(str(new_user_id), new_creds)
         await crud.createDefaultConfiguration(user_id=str(new_user_id))
         type_response = "new_user"
         
     else:
+        # Existing user
+        new_user_id = user['user_id']
+
         user_credentials = dbschemas.UpdateGoogleOAuth(
             access_token=credentials.token,
             refresh_token=credentials.refresh_token,
@@ -261,41 +258,42 @@ async def google_callback(code: str):
             url_picture=user_picture
         )
 
-        update_creds = asyncio.create_task(crud.update_google_oauth(str(user_id), user_credentials))
+        update_creds = asyncio.create_task(crud.update_google_oauth(str(new_user_id), user_credentials))
         update_profile = asyncio.create_task(crud.update_profile(user_email, update_user))
 
         type_response = "login_user"
-        new_user_id = user['user_id']
 
         await update_creds
         await update_profile
 
-    # Generate Beaber Token
+    # Generate session token
     try:
-        session_token = encode_session_token(
-            str(new_user_id)
-        )
+        session_token = encode_session_token(str(new_user_id))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating session token: {str(e)}")
 
-    # Redirect to the needed page whether register or login and set the needed cookies
+    # Redirect and set cookie
     if type_response == "login_user":
         response = RedirectResponse(f"{FRONTEND_IP}/dashboard")
         response.set_cookie(
             key="credentials",
             value=f"Bearer {session_token}",
             httponly=False,
-            secure=True,   
-            samesite='Lax'
+            secure=False,     # Change to True when using HTTPS
+            samesite='None'   # Allows cross-site
         )
         return response
 
-
     elif type_response == "new_user":
         response = RedirectResponse(f"{FRONTEND_IP}/complete-register")
-        response.set_cookie("credentials", value=f"Bearer {session_token}")
+        response.set_cookie(
+            key="credentials",
+            value=f"Bearer {session_token}",
+            httponly=False,
+            secure=False,     # Change to True when using HTTPS
+            samesite='None'
+        )
         return response
-
 
 @app.get("/historical_founding_rate/{symbol}", description="Get historical founing rate of a crypto", tags=["Metadata User"], deprecated=True)
 async def get_historical_founding_rate(symbol: str):

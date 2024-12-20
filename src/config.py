@@ -30,12 +30,16 @@ if HOSTNAME == 'mamadocomputer':
     DB_PASS = os.getenv('LOCAL_DB_PASS', 'password')
 
     GOOGLE_REDIRECT_URI = 'http://localhost:8000/oauth/google/callback'
+    FRONTEND_IP = os.getenv('LOCAL_FRONTEND_IP', None)
+
 else:
     DB_HOST = os.getenv('TEST_DB_HOST', '0.0.0.0')
     DB_USER = os.getenv('TEST_DB_USER', None)
     DB_PASS = os.getenv('TEST_DB_PASS', 'password')
 
     GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', None)
+    FRONTEND_IP = os.getenv('TEST_FRONTEND_IP', None)
+
 
 # Google Oauth
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', 'your-google-client-id')
@@ -44,8 +48,6 @@ GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', 'your-client-sercret')
 
 # SECURITY
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-jwt-secret-key')
-FRONTEND_IP = os.getenv('FRONTEND_IP', 'https//0.0.0.0/')
-
 
 def load_public_key(path):
     absolute_path = os.path.join(BASE_DIR, path)
