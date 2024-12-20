@@ -118,7 +118,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://fundy.pauservices.top"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -280,11 +280,12 @@ async def google_callback(code: str):
         "httponly": False,
         "secure": FRONTEND_IP.startswith("https"),
         "samesite": 'None',
-        "path": "/"
+        "path": "/",
+        "domain": ".pauservices.top"
     }
 
     if type_response == "login_user":
-        response = RedirectResponse(f"{FRONTEND_IP}/dashboard")
+        response = RedirectResponse(f"{FRONTEND_IP}/dashboasrd")
         response.set_cookie(**cookie_params)
         return response
 
@@ -292,6 +293,13 @@ async def google_callback(code: str):
         response = RedirectResponse(f"{FRONTEND_IP}/complete-register")
         response.set_cookie(**cookie_params)
         return response
+
+@app.get("/show-cookie", tags=["Testing"])
+async def show_cookie(request: Request):
+    creds = request.cookies.get("credentials")
+    print("Credentials from request:", creds)
+    return {"credentials": creds}
+
 
 @app.get("/historical_founding_rate/{symbol}", description="Get historical founing rate of a crypto", tags=["Metadata User"], deprecated=True)
 async def get_historical_founding_rate(symbol: str):
