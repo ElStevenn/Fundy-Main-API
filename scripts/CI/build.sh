@@ -18,8 +18,8 @@ NGINX_CONF_DIR="/etc/nginx/sites-available"
 NGINX_ENABLED_DIR="/etc/nginx/sites-enabled"
 NGINX_CONF="$NGINX_CONF_DIR/fundy_api"
 
-cd /home/ubuntu/Fundy-Main-API
-git pull origin main  
+git -C /home/ubuntu/Fundy-Main-API pull origin main
+
 
 # Ensure directories
 sudo mkdir -p $NGINX_CONF_DIR $NGINX_ENABLED_DIR
