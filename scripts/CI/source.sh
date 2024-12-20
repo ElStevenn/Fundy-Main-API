@@ -79,5 +79,3 @@ if [ -f "$config" ]; then
 else
     echo "Config file not found"
 fi
-cd /home/ubuntu/Fundy-Main-API
-git pull origin main  
