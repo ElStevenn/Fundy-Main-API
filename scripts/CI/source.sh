@@ -64,6 +64,7 @@ if [ -f "$config" ]; then
             jq '.first_time = false' "$config" > temp.json && mv temp.json "$config"
 
         else
+            git config --global --add safe.directory /home/ubuntu/Fundy-Main-API
             git pull origin main
             cd Fundy-Main-API
         fi

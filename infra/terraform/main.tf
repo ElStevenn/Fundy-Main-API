@@ -164,6 +164,64 @@ resource "null_resource" "post_eip_setup" {
   }
 }
 
+resource "null_resource" "update_container" {
+  depends_on = [aws_instance.main_api_project]
+
+  # Trigger to force execution whenever needed
+  triggers = {
+    manual_trigger = timestamp() 
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+      cd .. &&
+      cd .. &&
+      git add . &&
+      git commit -m "${var.commit_message}" &&
+      git push -u origin main
+    EOT
+  }
+
+  provisioner "file" {
+    source      = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/scripts"
+    destination = "/home/ubuntu/scripts"
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file("../../src/security/instance_key")
+      host        = aws_eip.main_api_eip.public_ip
+    }
+  }
+
+  provisioner "file" {
+    source      = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/src/.env"
+    destination = "/home/ubuntu/Fundy-Main-API/src/.env"
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file("../../src/security/instance_key")
+      host        = aws_eip.main_api_eip.public_ip
+    }
+  }
+
+    provisioner "remote-exec" {
+    inline = [
+      "bash /home/ubuntu/scripts/CI/source.sh",
+      "chmod +x /home/ubuntu/scripts/*",
+      "bash /home/ubuntu/scripts/restart_server.sh",
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file("../../src/security/instance_key")
+      host        = aws_eip.main_api_eip.public_ip
+    }
+  }
+}
+
 # Output the Elastic IP
 output "elastic_ip" {
   value       = aws_eip.main_api_eip.public_ip
