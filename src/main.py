@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Fundy-Main-API",
+    title="Fundy-Main-APIOINI REAL",
     description=(
         "The **Fundy Main API** is a backend solution for managing trading accounts, user profiles, and cryptocurrency data.\n"
         "It ensures secure and efficient handling of sensitive data while offering tools for scheduling and automation.\n"
