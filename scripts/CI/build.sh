@@ -7,8 +7,6 @@ EMAIL="paumat17@gmail.com"
 APP_DIR="/home/ubuntu/Fundy-Main-API"
 CONFIG="/home/ubuntu/scripts/config.json"
 SECURITY_PATH="$APP_DIR/src/security"
-PRIVATE_KEY="$SECURITY_PATH/private_key.pem"
-PUBLIC_KEY="$SECURITY_PATH/public_key.pem"
 IMAGE_NAME="fundy_main_api"
 CONTAINER_NAME="fundy_main_api_v1"
 NETWORK_NAME="my_network"
@@ -23,12 +21,6 @@ if [[ "$FIRST_TIME" == "false" ]]; then
     git -C /home/ubuntu/Fundy-Main-API pull origin main
 fi
 
-
-if [ ! -f "$PRIVATE_KEY" ]; then
-    mkdir -p "$SECURITY_PATH"
-    openssl genpkey -algorithm RSA -out "$PRIVATE_KEY" -pkeyopt rsa_keygen_bits:4096
-    openssl rsa -pubout -in "$PRIVATE_KEY" -out "$PUBLIC_KEY"
-fi
 
 docker container stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
 docker container rm "$CONTAINER_NAME" >/dev/null 2>&1 || true
