@@ -152,6 +152,8 @@ resource "null_resource" "post_eip_setup" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ubuntu/scripts/CI/build.sh",
+      "sudo chown ubuntu:ubuntu \"$CONFIG\"",
+      "sudo chmod 644 \"$CONFIG\"",
       "bash /home/ubuntu/scripts/CI/build.sh"
     ]
 
