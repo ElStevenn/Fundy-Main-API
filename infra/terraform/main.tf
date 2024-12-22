@@ -137,7 +137,6 @@ resource "null_resource" "post_eip_setup" {
     inline = [
       "sudo chown ubuntu:ubuntu /home/ubuntu/scripts/config.json",
       "sudo chmod 644 /home/ubuntu/scripts/config.json",
-      "jq '.api = false' /home/ubuntu/scripts/config.json | sudo tee /home/ubuntu/scripts/config.json > /dev/null"
     ]
     connection {
       type        = "ssh"
@@ -186,6 +185,9 @@ resource "null_resource" "update_container" {
 
   provisioner "remote-exec" {
     inline = [
+      "git -C /home/ubuntu/nginx_frontend reset --hard",
+      "git -C /home/ubuntu/nginx_frontend config pull.rebase false",
+      "git -C /home/ubuntu/nginx_frontend pull origin main",
       "bash /home/ubuntu/scripts/CI/source.sh",
       "chmod +x /home/ubuntu/scripts/*",
       "bash /home/ubuntu/scripts/restart_server.sh"
