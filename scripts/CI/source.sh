@@ -32,7 +32,7 @@ if [ -f "$config" ]; then
             echo "Setting up network"
             docker network create --driver bridge "$network_name"
 
-            jq '.network = true' "$config" > temp.json && mv temp.json "$config"
+            sudo jq '.network = true' "$config" | sudo tee "$config" > /dev/null
         fi
 
         if [[ "$VOLUMES" == "false" ]]; then
@@ -40,7 +40,7 @@ if [ -f "$config" ]; then
             echo "Setting up volumes"
             docker volume create --name "$volumes_name"
 
-            jq '.volumes = true' "$config" > temp.json && mv temp.json "$config"
+            sudo jq '.volumes = true' "$config" | sudo tee "$config" > /dev/null
         fi
 
         if [[ "$POSTGRES" == "false" ]]; then
@@ -57,7 +57,7 @@ if [ -f "$config" ]; then
             -p 5432:5432 \
             postgres:13.2
 
-            jq '.postgres = true' "$config" > temp.json && mv temp.json "$config"
+            sudo jq '.postgres = true' "$config" | sudo tee "$config" > /dev/null
         fi
 
         if [[ "$FIRST_TIME" == "true" ]]; then
