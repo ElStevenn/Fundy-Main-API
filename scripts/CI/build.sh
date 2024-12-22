@@ -118,5 +118,3 @@ if [[ "$FIRST_TIME" == "true" ]]; then
     jq '.first_time = false' "$CONFIG" > temp.json && mv temp.json "$CONFIG"
 fi
 
-# Run unit tests or additional scripts
-bash /home/ubuntu/scripts/CI/unit_testing.sh

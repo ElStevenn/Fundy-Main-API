@@ -14,12 +14,6 @@ sudo apt-get update -y
 # Install required packages
 sudo apt-get install -y nginx certbot python3-certbot-nginx jq git docker.io
 
-# Start and enable Docker
-sudo systemctl start docker
-sudo systemctl enable docker
-
-# Add the ubuntu user to the docker group (optional, allows running docker without sudo)
-sudo usermod -aG docker ubuntu
 
 # Configure
 if [ -f "$config" ]; then

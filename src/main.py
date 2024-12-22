@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse, HTMLResponse
 from starlette.responses import RedirectResponse
 from cryptography.hazmat.primitives import serialization
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as tz
 from pytz import timezone
 import uuid, asyncio, schedule, os, time, threading, pytz, jwt, random
 
@@ -278,11 +278,11 @@ async def google_callback(code: str):
         "key": "credentials",
         "value": f"Bearer {session_token}",
         "httponly": False,
-        "expires": datetime.now() + timedelta(days=30),
+        "expires": datetime.now(tz.utc) + timedelta(days=30),
         "secure": True,     
         "samesite": "None",
         "path": "/",
-        "domain": ".pauservices.top"  
+        "domain": ".pauservices.top"
     }
 
     if type_response == "login_user":
