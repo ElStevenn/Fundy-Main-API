@@ -51,14 +51,16 @@ data "aws_iam_instance_profile" "ssm-fullacces" {
 }
 
 resource "aws_eip" "main_api_eip" {
-  domain = "vpc"
+  provider = aws
+  # No arguments; this resource is managed by importing the existing EIP.
+
   tags = {
     Name = "Trade Visionary Main API EIP"
   }
 }
 
 resource "aws_instance" "main_api_project" {
-  ami                    = var.ami_id
+  ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t3.medium"
   key_name               = aws_key_pair.instance_pub_key.key_name
   subnet_id              = var.subnet_id
@@ -80,7 +82,7 @@ resource "aws_instance" "main_api_project" {
     ignore_changes = [ami]
   }
 
-  provisioner "local-exec" {
+    provisioner "local-exec" {
     command = <<EOT
       git -C /home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API add . &&
       git -C /home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API commit -m "${var.commit_message}" &&
@@ -109,22 +111,6 @@ resource "aws_instance" "main_api_project" {
       host        = self.public_ip
     }
   }
-
-  provisioner "remote-exec" {
-    inline = [
-      "chmod +x /home/ubuntu/scripts/*",
-      "bash /home/ubuntu/scripts/CI/source.sh",
-      "bash /home/ubuntu/scripts/CI/build.sh",
-      "bash /home/ubuntu/scripts/CI/unit_testing.sh"
-    ]
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = file("../../src/security/instance_key")
-      host        = self.public_ip
-    }
-  }
-
 }
 
 resource "aws_eip_association" "main_api_eip_assoc" {
@@ -137,13 +123,35 @@ resource "aws_eip_association" "main_api_eip_assoc" {
   ]
 }
 
-resource "null_resource" "post_eip_setup" {
+resource "null_resource" "initial_setup" {
   depends_on = [aws_eip_association.main_api_eip_assoc]
 
   provisioner "remote-exec" {
     inline = [
-      "sudo chown ubuntu:ubuntu /home/ubuntu/scripts/config.json",
-      "sudo chmod 644 /home/ubuntu/scripts/config.json",
+      "chmod +x /home/ubuntu/scripts/*",
+      "bash /home/ubuntu/scripts/CI/source.sh",
+      "bash /home/ubuntu/scripts/CI/build.sh",
+      "bash /home/ubuntu/scripts/CI/unit_testing.sh"
+    ]
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file("../../src/security/instance_key")
+      host        = aws_eip.main_api_eip.public_ip
+    }
+  }
+
+}
+
+resource "null_resource" "post_eip_setup" {
+  depends_on = [aws_eip_association.main_api_eip_assoc]
+
+    provisioner "remote-exec" {
+    inline = [
+      "chmod +x /home/ubuntu/scripts/*",
+      "bash /home/ubuntu/scripts/CI/source.sh",
+      "bash /home/ubuntu/scripts/CI/build.sh",
+      "bash /home/ubuntu/scripts/CI/unit_testing.sh"
     ]
     connection {
       type        = "ssh"
@@ -155,7 +163,7 @@ resource "null_resource" "post_eip_setup" {
 }
 
 resource "null_resource" "update_container" {
-  depends_on = [aws_instance.main_api_project]
+  depends_on = [aws_eip_association.main_api_eip_assoc]
   triggers = {
     manual_trigger = timestamp()
   }
