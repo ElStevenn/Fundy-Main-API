@@ -1,5 +1,4 @@
 #!/bin/bash
-
 set -e
 
 DOMAIN="pauservices.top"
@@ -20,7 +19,6 @@ sudo mkdir -p "$NGINX_CONF_DIR" "$NGINX_ENABLED_DIR"
 if [[ "$FIRST_TIME" == "false" ]]; then
     git -C /home/ubuntu/Fundy-Main-API pull origin main
 fi
-
 
 docker container stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
 docker container rm "$CONTAINER_NAME" >/dev/null 2>&1 || true
@@ -83,15 +81,15 @@ sudo systemctl reload nginx
 
 if [ -f "$CONFIG" ]; then
     if [[ -s "$CONFIG" ]]; then
-        API=\$(jq -r '.api' "$CONFIG")
-        if [[ "\$API" == "false" ]]; then
+        API=$(jq -r '.api' "$CONFIG")
+        if [[ "$API" == "false" ]]; then
             sudo jq '.api = true' "$CONFIG" | sudo tee "$CONFIG" > /dev/null
         fi
     fi
 fi
 
 if [[ "$FIRST_TIME" == "true" ]]; then
-    jq '.first_time = false' "$config" > temp.json && mv temp.json "$config"
+    jq '.first_time = false' "$CONFIG" > temp.json && mv temp.json "$CONFIG"
 fi
 
 bash /home/ubuntu/scripts/CI/unit_testing.sh
