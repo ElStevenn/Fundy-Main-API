@@ -18,14 +18,12 @@ NGINX_CONF_DIR="/etc/nginx/sites-available"
 NGINX_ENABLED_DIR="/etc/nginx/sites-enabled"
 NGINX_CONF="$NGINX_CONF_DIR/fundy_api"
 
+# Update repo
 git -C /home/ubuntu/Fundy-Main-API pull origin main
-
 
 # Ensure directories
 sudo mkdir -p $NGINX_CONF_DIR $NGINX_ENABLED_DIR
-if [ ! -d "$SECURITY_PATH" ]; then
-    mkdir -p "$SECURITY_PATH"
-fi
+mkdir -p "$SECURITY_PATH"
 
 # Generate keys if needed
 if [ ! -f "$PRIVATE_KEY" ]; then
@@ -45,25 +43,29 @@ if [ -f "$CONFIG" ]; then
     jq '.api = false' "$CONFIG" > temp.json && mv temp.json "$CONFIG"
 fi
 
-# Update packages and install Nginx, Certbot
+# Update packages and install dependencies
 sudo apt-get update -y
 sudo apt-get install -y nginx certbot python3-certbot-nginx
 
-# Allow Nginx through firewall if UFW is enabled
+# Allow Nginx through firewall
 sudo ufw allow 'Nginx Full' || true
 
 # Build Docker image
-cd "$APP_DIR" || exit 1
+cd "$APP_DIR"
 docker build -t "$IMAGE_NAME" .
 
 # Run the container mapped to localhost:8000
 docker run -d --name "$CONTAINER_NAME" --network "$NETWORK_NAME" -p 127.0.0.1:8000:8000 "$IMAGE_NAME"
 
-# Create a temporary HTTP server block for initial certificate issuance
+# Temporary HTTP configuration for Certbot
 sudo bash -c "cat > $NGINX_CONF" <<EOL
 server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:8000;
@@ -78,16 +80,16 @@ EOL
 sudo ln -sf "$NGINX_CONF" "$NGINX_ENABLED_DIR/fundy_api"
 sudo rm -f /etc/nginx/sites-enabled/default || true
 
-# Test Nginx configuration and restart
+# Test Nginx and restart
 sudo nginx -t
 sudo systemctl restart nginx
 
-# Obtain SSL certificate using HTTP-01 challenge
+# Obtain SSL certificates
 if [ ! -d "/etc/letsencrypt/live/$DOMAIN" ]; then
-    sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos -m $EMAIL
+    sudo certbot certonly --webroot -w /var/www/html -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos -m $EMAIL
 fi
 
-# Now that we have the certificate, reconfigure Nginx to only listen on HTTPS (443)
+# Final HTTPS Nginx configuration
 sudo bash -c "cat > $NGINX_CONF" <<EOL
 server {
     listen 443 ssl;
@@ -108,11 +110,11 @@ server {
 }
 EOL
 
-# Remove any references to port 80, just serve on port 443 now
+# Verify SSL Config
 sudo nginx -t
 sudo systemctl reload nginx
 
-# Update the API flag in config
+# Update API flag in config
 if [ -f "$CONFIG" ]; then
     if [[ -s "$CONFIG" ]]; then
         API=$(jq -r '.api' "$CONFIG")
@@ -122,5 +124,5 @@ if [ -f "$CONFIG" ]; then
     fi
 fi
 
-# echo "Setup complete. Your application should now be accessible exclusively via https://$DOMAIN/ (port 443 only)."
+# Final Unit Tests
 bash /home/ubuntu/scripts/CI/unit_testing.sh
