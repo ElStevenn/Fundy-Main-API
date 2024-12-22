@@ -12,6 +12,7 @@ NETWORK_NAME="my_network"
 NGINX_CONF_DIR="/etc/nginx/sites-available"
 NGINX_ENABLED_DIR="/etc/nginx/sites-enabled"
 NGINX_CONF="$NGINX_CONF_DIR/fundy_api"
+
 FIRST_TIME=$(jq -r '.first_time' "$CONFIG")
 
 sudo mkdir -p "$NGINX_CONF_DIR" "$NGINX_ENABLED_DIR"
@@ -32,33 +33,32 @@ cd "$APP_DIR"
 docker build -t "$IMAGE_NAME" .
 docker run -d --name "$CONTAINER_NAME" --network "$NETWORK_NAME" -p 127.0.0.1:8000:8000 "$IMAGE_NAME"
 
-sudo bash -c "cat > $NGINX_CONF" <<EOF
+sudo bash -c "cat > $NGINX_CONF" <<EOL
 server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN;
-    location /.well-known/acme-challenge/ {
-        root /var/www/html;
-    }
+
     location / {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
-EOF
+EOL
 
 sudo ln -sf "$NGINX_CONF" "$NGINX_ENABLED_DIR/fundy_api"
 sudo rm -f /etc/nginx/sites-enabled/default || true
+
 sudo nginx -t
 sudo systemctl restart nginx
 
 if [ ! -d "/etc/letsencrypt/live/$DOMAIN" ]; then
-    sudo certbot certonly --webroot -w /var/www/html -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos -m "$EMAIL"
+    sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos -m $EMAIL
 fi
 
-sudo bash -c "cat > $NGINX_CONF" <<EOF
+sudo bash -c "cat > $NGINX_CONF" <<EOL
 server {
     listen 443 ssl;
     server_name $DOMAIN www.$DOMAIN;
@@ -66,15 +66,16 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
     location / {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
-EOF
+EOL
 
 sudo nginx -t
 sudo systemctl reload nginx
