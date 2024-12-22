@@ -1,18 +1,14 @@
-# Provider configuration for AWS
 provider "aws" {
   region = "eu-south-2"
 }
 
-# Key Pair
 resource "aws_key_pair" "instance_pub_key" {
   key_name   = "instance_key_api"
   public_key = file("../../src/security/instance_key.pub")
 }
 
-# Needed role
 resource "aws_iam_role" "ssm_role" {
   name = "ssm_full_acces_role"
-
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -35,12 +31,10 @@ resource "aws_iam_role_policy_attachment" "ssm_full_access" {
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"]
-
   filter {
     name   = "name"
     values = ["ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*"]
   }
-
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
@@ -99,7 +93,6 @@ resource "aws_instance" "main_api_project" {
   provisioner "file" {
     source      = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/scripts"
     destination = "/home/ubuntu/scripts"
-
     connection {
       type        = "ssh"
       user        = "ubuntu"
@@ -113,7 +106,6 @@ resource "aws_instance" "main_api_project" {
       "chmod +x /home/ubuntu/scripts/*",
       "bash /home/ubuntu/scripts/CI/source.sh"
     ]
-
     connection {
       type        = "ssh"
       user        = "ubuntu"
@@ -125,8 +117,7 @@ resource "aws_instance" "main_api_project" {
   provisioner "file" {
     source      = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/src/.env"
     destination = "/home/ubuntu/Fundy-Main-API/src/.env"
-
-    connection {  
+    connection {
       type        = "ssh"
       user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
@@ -149,7 +140,6 @@ resource "null_resource" "post_eip_setup" {
       "sudo chmod 644 /home/ubuntu/scripts/config.json",
       "jq '.api = false' /home/ubuntu/scripts/config.json | sudo tee /home/ubuntu/scripts/config.json > /dev/null"
     ]
-
     connection {
       type        = "ssh"
       user        = "ubuntu"
@@ -161,7 +151,6 @@ resource "null_resource" "post_eip_setup" {
 
 resource "null_resource" "update_container" {
   depends_on = [aws_instance.main_api_project]
-
   triggers = {
     manual_trigger = timestamp()
   }
@@ -178,8 +167,7 @@ resource "null_resource" "update_container" {
 
   provisioner "file" {
     source      = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/scripts/CI"
-    destination = "/home/ubuntu/scripts/CI"
-
+    destination = "/home/ubuntu/scripts"
     connection {
       type        = "ssh"
       user        = "ubuntu"
@@ -191,7 +179,6 @@ resource "null_resource" "update_container" {
   provisioner "file" {
     source      = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/src/.env"
     destination = "/home/ubuntu/Fundy-Main-API/src/.env"
-
     connection {
       type        = "ssh"
       user        = "ubuntu"
@@ -206,7 +193,6 @@ resource "null_resource" "update_container" {
       "chmod +x /home/ubuntu/scripts/*",
       "bash /home/ubuntu/scripts/restart_server.sh"
     ]
-
     connection {
       type        = "ssh"
       user        = "ubuntu"
