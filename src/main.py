@@ -277,28 +277,24 @@ async def google_callback(code: str):
     cookie_params = {
         "key": "credentials",
         "value": f"Bearer {session_token}",
-        "httponly": False,  # So JS can read it
-        "secure": True,      # Ensure you're on HTTPS
+        "httponly": False,
+        "expires": datetime.now() + timedelta(days=30),
+        "secure": True,     
         "samesite": "None",
         "path": "/",
-        "domain": ".pauservices.top"  # Allows subdomains like fundy.pauservices.top to see the cookie
+        "domain": ".pauservices.top"  
     }
 
     if type_response == "login_user":
-        response = RedirectResponse(f"{FRONTEND_IP}/dashboasrd")
+        response = RedirectResponse(FRONTEND_IP + "/dashboard")
         response.set_cookie(**cookie_params)
         return response
 
     elif type_response == "new_user":
-        response = RedirectResponse(f"{FRONTEND_IP}/complete-register")
+        response = RedirectResponse(FRONTEND_IP + "/complete-register")
         response.set_cookie(**cookie_params)
         return response
 
-@app.get("/show-cookie", tags=["Testing"])
-async def show_cookie(request: Request):
-    creds = request.cookies.get("credentials")
-    print("Credentials from request:", creds)
-    return {"credentials": creds}
 
 
 @app.get("/historical_founding_rate/{symbol}", description="Get historical founing rate of a crypto", tags=["Metadata User"], deprecated=True)
