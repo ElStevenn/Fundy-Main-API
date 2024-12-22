@@ -136,23 +136,23 @@ resource "aws_eip_association" "main_api_eip_assoc" {
   ]
 }
 
-resource "null_resource" "initial_setup" {
-  depends_on = [aws_eip_association.main_api_eip_assoc]
+# resource "null_resource" "initial_setup" {
+#   depends_on = [aws_eip_association.main_api_eip_assoc]
 
-  provisioner "remote-exec" {
-    inline = [
-      "bash /home/ubuntu/scripts/CI/build.sh",
-      "bash /home/ubuntu/scripts/CI/unit_testing.sh"
-    ]
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = file("../../src/security/instance_key")
-      host        = aws_eip.main_api_eip.public_ip
-    }
-  }
+#   provisioner "remote-exec" {
+#     inline = [
+#       "bash /home/ubuntu/scripts/CI/build.sh",
+#       "bash /home/ubuntu/scripts/CI/unit_testing.sh"
+#     ]
+#     connection {
+#       type        = "ssh"
+#       user        = "ubuntu"
+#       private_key = file("../../src/security/instance_key")
+#       host        = aws_eip.main_api_eip.public_ip
+#     }
+#   }
 
-}
+# }
 
 resource "null_resource" "post_eip_setup" {
   depends_on = [aws_eip_association.main_api_eip_assoc]
@@ -214,12 +214,13 @@ resource "null_resource" "update_container" {
       "git -C /home/ubuntu/Fundy-Main-API reset --hard",
       "git -C /home/ubuntu/Fundy-Main-API config pull.rebase false",
       "git -C /home/ubuntu/Fundy-Main-API pull origin main",
-      "bash /home/ubuntu/scripts/CI/build.sh",
+      # "bash /home/ubuntu/scripts/CI/build.sh",
       "chmod +x /home/ubuntu/scripts/*",
       "bash /home/ubuntu/scripts/restart_server.sh"
     ]
     connection {
       type        = "ssh"
+      
       user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
       host        = aws_eip.main_api_eip.public_ip
