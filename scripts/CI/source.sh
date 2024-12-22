@@ -62,10 +62,10 @@ if [ -f "$config" ]; then
             # Set up first time
             echo "Running first-time setup..."
             git clone https://github.com/ElStevenn/Fundy-Main-API.git
+            mkdir -p /home/ubuntu/Fundy-Main-API/src/security
             cd Fundy-Main-API
 
             git config --global --add safe.directory /home/ubuntu/Fundy-Main-API
-            jq '.first_time = false' "$config" > temp.json && mv temp.json "$config"
 
         else
             cd /home/ubuntu/Fundy-Main-API

@@ -15,10 +15,14 @@ NETWORK_NAME="my_network"
 NGINX_CONF_DIR="/etc/nginx/sites-available"
 NGINX_ENABLED_DIR="/etc/nginx/sites-enabled"
 NGINX_CONF="$NGINX_CONF_DIR/fundy_api"
+FIRST_TIME=$(jq -r '.first_time' "$CONFIG")
 
-git -C /home/ubuntu/Fundy-Main-API pull origin main
 sudo mkdir -p "$NGINX_CONF_DIR" "$NGINX_ENABLED_DIR"
-mkdir -p /home/ubuntu/Fundy-Main-API/src/security
+
+if [[ "$FIRST_TIME" == "false" ]]; then
+    git -C /home/ubuntu/Fundy-Main-API pull origin main
+fi
+
 
 if [ ! -f "$PRIVATE_KEY" ]; then
     mkdir -p "$SECURITY_PATH"
@@ -92,6 +96,10 @@ if [ -f "$CONFIG" ]; then
             sudo jq '.api = true' "$CONFIG" | sudo tee "$CONFIG" > /dev/null
         fi
     fi
+fi
+
+if [[ "$FIRST_TIME" == "true" ]]; then
+    jq '.first_time = false' "$config" > temp.json && mv temp.json "$config"
 fi
 
 bash /home/ubuntu/scripts/CI/unit_testing.sh
