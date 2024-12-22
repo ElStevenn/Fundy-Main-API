@@ -102,7 +102,8 @@ resource "aws_instance" "main_api_project" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ubuntu/scripts/*",
-      "bash /home/ubuntu/scripts/CI/source.sh"
+      "bash /home/ubuntu/scripts/CI/source.sh",
+      "bash /home/ubuntu/scripts/CI/unit_testing.sh"
     ]
     connection {
       type        = "ssh"
