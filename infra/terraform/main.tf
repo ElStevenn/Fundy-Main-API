@@ -83,10 +83,9 @@ resource "aws_instance" "main_api_project" {
   }
 
   lifecycle {
-    ignore_changes = [ami] # Prevent Terraform from recreating due to AMI drift
+    ignore_changes = [ami]
   }
 
-  # Push changes locally before proceeding
   provisioner "local-exec" {
     command = <<EOT
       cd .. &&
@@ -97,7 +96,6 @@ resource "aws_instance" "main_api_project" {
     EOT
   }
 
-  # Copy the scripts directory to the instance
   provisioner "file" {
     source      = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/scripts"
     destination = "/home/ubuntu/scripts"
@@ -110,7 +108,6 @@ resource "aws_instance" "main_api_project" {
     }
   }
 
-  # Run source.sh after scripts are copied and before build.sh
   provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ubuntu/scripts/*",
@@ -125,7 +122,6 @@ resource "aws_instance" "main_api_project" {
     }
   }
 
-  # Copy the .env file to the server
   provisioner "file" {
     source      = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/src/.env"
     destination = "/home/ubuntu/Fundy-Main-API/src/.env"
@@ -139,23 +135,18 @@ resource "aws_instance" "main_api_project" {
   }
 }
 
-# Associate the EIP after the instance is created
 resource "aws_eip_association" "main_api_eip_assoc" {
   instance_id   = aws_instance.main_api_project.id
   allocation_id = aws_eip.main_api_eip.id
 }
 
-# After EIP is associated, run build.sh using the Elastic IP
 resource "null_resource" "post_eip_setup" {
   depends_on = [aws_eip_association.main_api_eip_assoc]
 
   provisioner "remote-exec" {
     inline = [
-      # Make sure the ubuntu user owns the file
       "sudo chown ubuntu:ubuntu /home/ubuntu/scripts/config.json",
       "sudo chmod 644 /home/ubuntu/scripts/config.json",
-
-      # Directly overwrite config.json by piping jq output into tee
       "jq '.api = false' /home/ubuntu/scripts/config.json | sudo tee /home/ubuntu/scripts/config.json > /dev/null"
     ]
 
@@ -166,17 +157,13 @@ resource "null_resource" "post_eip_setup" {
       host        = aws_eip.main_api_eip.public_ip
     }
   }
-
-
 }
-
 
 resource "null_resource" "update_container" {
   depends_on = [aws_instance.main_api_project]
 
-  # Trigger to force execution whenever needed
   triggers = {
-    manual_trigger = timestamp() 
+    manual_trigger = timestamp()
   }
 
   provisioner "local-exec" {
@@ -213,11 +200,11 @@ resource "null_resource" "update_container" {
     }
   }
 
-    provisioner "remote-exec" {
+  provisioner "remote-exec" {
     inline = [
       "bash /home/ubuntu/scripts/CI/source.sh",
       "chmod +x /home/ubuntu/scripts/*",
-      "bash /home/ubuntu/scripts/restart_server.sh",
+      "bash /home/ubuntu/scripts/restart_server.sh"
     ]
 
     connection {
@@ -229,7 +216,6 @@ resource "null_resource" "update_container" {
   }
 }
 
-# Output the Elastic IP
 output "elastic_ip" {
   value       = aws_eip.main_api_eip.public_ip
   description = "The Elastic IP address associated with the EC2 instance."
