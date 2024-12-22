@@ -160,8 +160,8 @@ resource "null_resource" "update_container" {
       cd .. &&
       cd .. &&
       git add . &&
-      git commit -m "${var.commit_message}" &&
-      git push -u origin main
+      git -C /home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API commit -m "${var.commit_message}" &&
+      git -C /home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API push -u origin main
     EOT
   }
 
