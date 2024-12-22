@@ -51,16 +51,14 @@ data "aws_iam_instance_profile" "ssm-fullacces" {
 }
 
 resource "aws_eip" "main_api_eip" {
-  provider = aws
-  # No arguments; this resource is managed by importing the existing EIP.
-
+  domain = "vpc"
   tags = {
     Name = "Trade Visionary Main API EIP"
   }
 }
 
 resource "aws_instance" "main_api_project" {
-  ami                    = data.aws_ami.ubuntu.id
+  ami                    = var.ami_id
   instance_type          = "t3.medium"
   key_name               = aws_key_pair.instance_pub_key.key_name
   subnet_id              = var.subnet_id
@@ -82,21 +80,6 @@ resource "aws_instance" "main_api_project" {
     ignore_changes = [ami]
   }
 
-}
-
-resource "aws_eip_association" "main_api_eip_assoc" {
-  instance_id   = aws_instance.main_api_project.id
-  allocation_id = aws_eip.main_api_eip.id
-
-  depends_on = [
-    aws_instance.main_api_project,
-    aws_eip.main_api_eip
-  ]
-}
-
-resource "null_resource" "initial_setup" {
-  depends_on = [aws_eip_association.main_api_eip_assoc]
-
   provisioner "local-exec" {
     command = <<EOT
       git -C /home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API add . &&
@@ -112,7 +95,7 @@ resource "null_resource" "initial_setup" {
       type        = "ssh"
       user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
-      host        = aws_eip.main_api_eip.public_ip
+      host        = self.public_ip
     }
   }
 
@@ -123,7 +106,7 @@ resource "null_resource" "initial_setup" {
       type        = "ssh"
       user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
-      host        = aws_eip.main_api_eip.public_ip
+      host        = self.public_ip
     }
   }
 
@@ -138,9 +121,20 @@ resource "null_resource" "initial_setup" {
       type        = "ssh"
       user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
-      host        = aws_eip.main_api_eip.public_ip
+      host        = self.public_ip
     }
   }
+
+}
+
+resource "aws_eip_association" "main_api_eip_assoc" {
+  instance_id   = aws_instance.main_api_project.id
+  allocation_id = aws_eip.main_api_eip.id
+
+  depends_on = [
+    aws_instance.main_api_project,
+    aws_eip.main_api_eip
+  ]
 }
 
 resource "null_resource" "post_eip_setup" {
@@ -161,7 +155,7 @@ resource "null_resource" "post_eip_setup" {
 }
 
 resource "null_resource" "update_container" {
-  depends_on = [aws_eip_association.main_api_eip_assoc]
+  depends_on = [aws_instance.main_api_project]
   triggers = {
     manual_trigger = timestamp()
   }
