@@ -58,7 +58,7 @@ resource "aws_eip" "main_api_eip" {
 }
 
 resource "aws_instance" "main_api_project" {
-  ami                    = var.ami_id
+  ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t3.medium"
   key_name               = aws_key_pair.instance_pub_key.key_name
   subnet_id              = var.subnet_id
@@ -129,6 +129,11 @@ resource "aws_instance" "main_api_project" {
 resource "aws_eip_association" "main_api_eip_assoc" {
   instance_id   = aws_instance.main_api_project.id
   allocation_id = aws_eip.main_api_eip.id
+
+  depends_on = [
+    aws_instance.main_api_project,
+    aws_eip.main_api_eip
+  ]
 }
 
 resource "null_resource" "post_eip_setup" {
