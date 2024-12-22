@@ -45,10 +45,6 @@ if [ -f "$CONFIG" ]; then
     jq '.api = false' "$CONFIG" | sudo tee "$CONFIG" > /dev/null
 fi
 
-# Update packages and install dependencies
-sudo apt-get update -y
-sudo apt-get install -y nginx certbot python3-certbot-nginx
-
 # Allow Nginx through firewall
 sudo ufw allow 'Nginx Full' || true
 

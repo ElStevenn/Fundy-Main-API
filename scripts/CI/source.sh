@@ -8,6 +8,9 @@ volumes_name="my_volumes"
 postgres_image="my_postgres"
 postgres="my_postgres_v1"
 
+# Update packages and install dependencies
+sudo apt-get update -y
+sudo apt-get install -y nginx certbot python3-certbot-nginx
 
 # Configure
 if [ -f "$config" ]; then
@@ -60,7 +63,7 @@ if [ -f "$config" ]; then
             echo "Running first-time setup..."
             git clone https://github.com/ElStevenn/Fundy-Main-API.git
             cd Fundy-Main-API
-            
+
             git config --global --add safe.directory /home/ubuntu/Fundy-Main-API
             jq '.first_time = false' "$config" > temp.json && mv temp.json "$config"
 
