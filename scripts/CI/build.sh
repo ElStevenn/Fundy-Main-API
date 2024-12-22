@@ -43,11 +43,9 @@ sudo bash -c "cat > $NGINX_CONF" <<EOF
 server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN;
-
     location /.well-known/acme-challenge/ {
         root /var/www/html;
     }
-
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host \$host;
@@ -71,12 +69,10 @@ sudo bash -c "cat > $NGINX_CONF" <<EOF
 server {
     listen 443 ssl;
     server_name $DOMAIN www.$DOMAIN;
-
     ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host \$host;
@@ -92,8 +88,8 @@ sudo systemctl reload nginx
 
 if [ -f "$CONFIG" ]; then
     if [[ -s "$CONFIG" ]]; then
-        API=$(jq -r '.api' "$CONFIG")
-        if [[ "$API" == "false" ]]; then
+        API=\$(jq -r '.api' "$CONFIG")
+        if [[ "\$API" == "false" ]]; then
             sudo jq '.api = true' "$CONFIG" | sudo tee "$CONFIG" > /dev/null
         fi
     fi
