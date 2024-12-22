@@ -22,7 +22,7 @@ NGINX_CONF="$NGINX_CONF_DIR/fundy_api"
 git -C /home/ubuntu/Fundy-Main-API pull origin main
 
 # Ensure directories
-sudo mkdir -p $NGINX_CONF_DIR $NGINX_ENABLED_DIR
+sudo mkdir -p "$NGINX_CONF_DIR" "$NGINX_ENABLED_DIR"
 mkdir -p "$SECURITY_PATH"
 
 # Generate keys if needed
@@ -39,8 +39,10 @@ fi
 # Stop and remove existing container
 docker container stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
 docker container rm "$CONTAINER_NAME" >/dev/null 2>&1 || true
+
+# If config.json exists, set .api = false, overwriting in-place
 if [ -f "$CONFIG" ]; then
-    jq '.api = false' "$CONFIG" > temp.json && sudo mv -f temp.json "$CONFIG"
+    jq '.api = false' "$CONFIG" | sudo tee "$CONFIG" > /dev/null
 fi
 
 # Update packages and install dependencies
@@ -86,7 +88,7 @@ sudo systemctl restart nginx
 
 # Obtain SSL certificates
 if [ ! -d "/etc/letsencrypt/live/$DOMAIN" ]; then
-    sudo certbot certonly --webroot -w /var/www/html -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos -m $EMAIL
+    sudo certbot certonly --webroot -w /var/www/html -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos -m "$EMAIL"
 fi
 
 # Final HTTPS Nginx configuration
@@ -110,7 +112,7 @@ server {
 }
 EOL
 
-# Verify SSL Config
+# Verify SSL config
 sudo nginx -t
 sudo systemctl reload nginx
 
@@ -123,8 +125,6 @@ if [ -f "$CONFIG" ]; then
         fi
     fi
 fi
-
-
 
 # Final Unit Tests
 bash /home/ubuntu/scripts/CI/unit_testing.sh
