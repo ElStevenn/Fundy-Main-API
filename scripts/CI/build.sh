@@ -2,12 +2,10 @@
 
 set -e
 
-# Variables
 DOMAIN="pauservices.top"
-EMAIL="paumat17@gmail.com" 
+EMAIL="paumat17@gmail.com"
 APP_DIR="/home/ubuntu/Fundy-Main-API"
 CONFIG="/home/ubuntu/scripts/config.json"
-
 SECURITY_PATH="$APP_DIR/src/security"
 PRIVATE_KEY="$SECURITY_PATH/private_key.pem"
 PUBLIC_KEY="$SECURITY_PATH/public_key.pem"
@@ -18,45 +16,30 @@ NGINX_CONF_DIR="/etc/nginx/sites-available"
 NGINX_ENABLED_DIR="/etc/nginx/sites-enabled"
 NGINX_CONF="$NGINX_CONF_DIR/fundy_api"
 
-# Update repo
 git -C /home/ubuntu/Fundy-Main-API pull origin main
-
-# Ensure directories
 sudo mkdir -p "$NGINX_CONF_DIR" "$NGINX_ENABLED_DIR"
 mkdir -p "$SECURITY_PATH"
 
-# Generate keys if needed
 if [ ! -f "$PRIVATE_KEY" ]; then
-    echo "Generating private key..."
     openssl genpkey -algorithm RSA -out "$PRIVATE_KEY" -pkeyopt rsa_keygen_bits:4096
-    echo "Generating public key..."
     openssl rsa -pubout -in "$PRIVATE_KEY" -out "$PUBLIC_KEY"
 fi
 
-# Ensure .env file
 [ ! -f "$APP_DIR/src/.env" ] && touch "$APP_DIR/src/.env"
 
-# Stop and remove existing container
 docker container stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
 docker container rm "$CONTAINER_NAME" >/dev/null 2>&1 || true
 
-# If config.json exists, set .api = false, overwriting in-place
 if [ -f "$CONFIG" ]; then
     jq '.api = false' "$CONFIG" | sudo tee "$CONFIG" > /dev/null
 fi
 
-# Allow Nginx through firewall
 sudo ufw allow 'Nginx Full' || true
-
-# Build Docker image
 cd "$APP_DIR"
 docker build -t "$IMAGE_NAME" .
-
-# Run the container mapped to localhost:8000
 docker run -d --name "$CONTAINER_NAME" --network "$NETWORK_NAME" -p 127.0.0.1:8000:8000 "$IMAGE_NAME"
 
-# Temporary HTTP configuration for Certbot
-sudo bash -c "cat > $NGINX_CONF" <<EOL
+sudo bash -c "cat > $NGINX_CONF" <<EOF
 server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN;
@@ -73,22 +56,18 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
-EOL
+EOF
 
 sudo ln -sf "$NGINX_CONF" "$NGINX_ENABLED_DIR/fundy_api"
 sudo rm -f /etc/nginx/sites-enabled/default || true
-
-# Test Nginx and restart
 sudo nginx -t
 sudo systemctl restart nginx
 
-# Obtain SSL certificates
 if [ ! -d "/etc/letsencrypt/live/$DOMAIN" ]; then
     sudo certbot certonly --webroot -w /var/www/html -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos -m "$EMAIL"
 fi
 
-# Final HTTPS Nginx configuration
-sudo bash -c "cat > $NGINX_CONF" <<EOL
+sudo bash -c "cat > $NGINX_CONF" <<EOF
 server {
     listen 443 ssl;
     server_name $DOMAIN www.$DOMAIN;
@@ -106,13 +85,11 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
-EOL
+EOF
 
-# Verify SSL config
 sudo nginx -t
 sudo systemctl reload nginx
 
-# Update API flag in config
 if [ -f "$CONFIG" ]; then
     if [[ -s "$CONFIG" ]]; then
         API=$(jq -r '.api' "$CONFIG")
@@ -122,5 +99,4 @@ if [ -f "$CONFIG" ]; then
     fi
 fi
 
-# Final Unit Tests
 bash /home/ubuntu/scripts/CI/unit_testing.sh
