@@ -103,6 +103,7 @@ resource "aws_instance" "main_api_project" {
     inline = [
       "chmod +x /home/ubuntu/scripts/*",
       "bash /home/ubuntu/scripts/CI/source.sh",
+      "bash /home/ubuntu/scripts/CI/build.sh",
       "bash /home/ubuntu/scripts/CI/unit_testing.sh"
     ]
     connection {
@@ -188,7 +189,7 @@ resource "null_resource" "update_container" {
       "git -C /home/ubuntu/nginx_frontend reset --hard",
       "git -C /home/ubuntu/nginx_frontend config pull.rebase false",
       "git -C /home/ubuntu/nginx_frontend pull origin main",
-      "bash /home/ubuntu/scripts/CI/source.sh",
+      "bash /home/ubuntu/scripts/CI/build.sh",
       "chmod +x /home/ubuntu/scripts/*",
       "bash /home/ubuntu/scripts/restart_server.sh"
     ]
