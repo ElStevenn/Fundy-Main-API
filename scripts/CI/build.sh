@@ -18,7 +18,7 @@ NGINX_CONF="$NGINX_CONF_DIR/fundy_api"
 
 git -C /home/ubuntu/Fundy-Main-API pull origin main
 sudo mkdir -p "$NGINX_CONF_DIR" "$NGINX_ENABLED_DIR"
-mkdir -p "$SECURITY_PATH"
+mkdir -p /home/ubuntu/Fundy-Main-API/src/security
 
 if [ ! -f "$PRIVATE_KEY" ]; then
     mkdir -p "$SECURITY_PATH"
