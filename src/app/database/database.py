@@ -12,7 +12,7 @@ SQLALCHEMY_DATABASE_URI = f'postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:5
 
 # Initialize models
 async def create_tables():
-    async with async_engine.begin() as conn:
+    async with async_engisne.begin() as conn:
         print("Creating tables...")
         await conn.run_sync(Base.metadata.create_all)
         print("Tables created successfully")
