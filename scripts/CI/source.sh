@@ -10,7 +10,16 @@ postgres="my_postgres_v1"
 
 # Update packages and install dependencies
 sudo apt-get update -y
-sudo apt-get install -y nginx certbot python3-certbot-nginx
+
+# Install required packages
+sudo apt-get install -y nginx certbot python3-certbot-nginx jq git docker.io
+
+# Start and enable Docker
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Add the ubuntu user to the docker group (optional, allows running docker without sudo)
+sudo usermod -aG docker ubuntu
 
 # Configure
 if [ -f "$config" ]; then
@@ -53,7 +62,6 @@ if [ -f "$config" ]; then
             -v "$volumes_name":/var/lib/postgresql/data \
             -p 5432:5432 \
             postgres:13.2
-
 
             jq '.postgres = true' "$config" > temp.json && mv temp.json "$config"
         fi
