@@ -119,13 +119,11 @@ if [ -f "$CONFIG" ]; then
     if [[ -s "$CONFIG" ]]; then
         API=$(jq -r '.api' "$CONFIG")
         if [[ "$API" == "false" ]]; then
-            jq '.api = true' "$CONFIG" > temp.json
-            sudo chmod 644 temp.json
-            sudo chown ubuntu:ubuntu temp.json
-            sudo mv -f temp.json "$CONFIG"
+            sudo jq '.api = true' "$CONFIG" | sudo tee "$CONFIG" > /dev/null
         fi
     fi
 fi
+
 
 
 # Final Unit Tests

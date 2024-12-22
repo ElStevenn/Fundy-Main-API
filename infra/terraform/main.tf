@@ -154,10 +154,7 @@ resource "null_resource" "post_eip_setup" {
       "chmod +x /home/ubuntu/scripts/CI/build.sh",
       "sudo chown ubuntu:ubuntu \"$CONFIG\"",
       "sudo chmod 644 \"$CONFIG\"",
-      "sudo jq '.api = true' \"$CONFIG\" > temp.json",
-      "sudo chmod 644 temp.json",
-      "sudo chown ubuntu:ubuntu temp.json",
-      "sudo mv -f temp.json \"$CONFIG\"",
+      "sudo jq '.api = true' \"$CONFIG\" | sudo tee \"$CONFIG\" > /dev/null",
       "bash /home/ubuntu/scripts/CI/build.sh"
     ]
 
