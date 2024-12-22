@@ -40,7 +40,7 @@ fi
 docker container stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
 docker container rm "$CONTAINER_NAME" >/dev/null 2>&1 || true
 if [ -f "$CONFIG" ]; then
-    jq '.api = false' "$CONFIG" > temp.json && mv temp.json "$CONFIG"
+    jq '.api = false' "$CONFIG" > temp.json && sudo mv -f temp.json "$CONFIG"
 fi
 
 # Update packages and install dependencies
@@ -119,10 +119,14 @@ if [ -f "$CONFIG" ]; then
     if [[ -s "$CONFIG" ]]; then
         API=$(jq -r '.api' "$CONFIG")
         if [[ "$API" == "false" ]]; then
-            jq '.api = true' "$CONFIG" > temp.json && mv temp.json "$CONFIG"
+            jq '.api = true' "$CONFIG" > temp.json
+            sudo chmod 644 temp.json
+            sudo chown ubuntu:ubuntu temp.json
+            sudo mv -f temp.json "$CONFIG"
         fi
     fi
 fi
+
 
 # Final Unit Tests
 bash /home/ubuntu/scripts/CI/unit_testing.sh

@@ -154,6 +154,10 @@ resource "null_resource" "post_eip_setup" {
       "chmod +x /home/ubuntu/scripts/CI/build.sh",
       "sudo chown ubuntu:ubuntu \"$CONFIG\"",
       "sudo chmod 644 \"$CONFIG\"",
+      "sudo jq '.api = true' \"$CONFIG\" > temp.json",
+      "sudo chmod 644 temp.json",
+      "sudo chown ubuntu:ubuntu temp.json",
+      "sudo mv -f temp.json \"$CONFIG\"",
       "bash /home/ubuntu/scripts/CI/build.sh"
     ]
 
@@ -165,6 +169,7 @@ resource "null_resource" "post_eip_setup" {
     }
   }
 }
+
 
 resource "null_resource" "update_container" {
   depends_on = [aws_instance.main_api_project]
