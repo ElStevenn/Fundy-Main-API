@@ -151,11 +151,16 @@ resource "null_resource" "post_eip_setup" {
 
   provisioner "remote-exec" {
     inline = [
-      "chmod +x /home/ubuntu/scripts/CI/build.sh",
-      "sudo chown ubuntu:ubuntu \"$CONFIG\"",
-      "sudo chmod 644 \"$CONFIG\"",
-      "sudo jq '.api = true' \"$CONFIG\" | sudo tee \"$CONFIG\" > /dev/null",
-      "bash /home/ubuntu/scripts/CI/build.sh"
+      # 1) Make sure the ubuntu user owns the file
+      "sudo chown ubuntu:ubuntu /home/ubuntu/scripts/config.json",
+
+      # 2) Give read-write permissions to the owner
+      "sudo chmod 644 /home/ubuntu/scripts/config.json",
+
+      # 3) Now you can safely change JSON values without interactive prompts
+      # Example: switch `.api` to false using jq, writing to temp and then overwrite
+      "jq '.api = false' /home/ubuntu/scripts/config.json > /home/ubuntu/scripts/temp.json",
+      "mv -f /home/ubuntu/scripts/temp.json /home/ubuntu/scripts/config.json"
     ]
 
     connection {
@@ -165,6 +170,7 @@ resource "null_resource" "post_eip_setup" {
       host        = aws_eip.main_api_eip.public_ip
     }
   }
+
 }
 
 
