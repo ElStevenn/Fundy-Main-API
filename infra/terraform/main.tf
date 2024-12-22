@@ -101,6 +101,17 @@ resource "aws_instance" "main_api_project" {
     }
   }
 
+  provisioner "file" {
+    source      = "/home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API/scripts/config.json"
+    destination = "/home/ubuntu/scripts/config.json"
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file("../../src/security/instance_key")
+      host        = self.public_ip
+    }
+  }
+
   provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ubuntu/scripts/CI/*",
