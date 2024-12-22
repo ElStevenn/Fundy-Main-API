@@ -58,7 +58,7 @@ resource "aws_eip" "main_api_eip" {
 }
 
 resource "aws_instance" "main_api_project" {
-  ami                    = data.aws_ami.ubuntu.id
+  ami                    = var.ami_id
   instance_type          = "t3.medium"
   key_name               = aws_key_pair.instance_pub_key.key_name
   subnet_id              = var.subnet_id
