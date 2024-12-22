@@ -211,9 +211,9 @@ resource "null_resource" "update_container" {
 
   provisioner "remote-exec" {
     inline = [
-      "git -C /home/ubuntu/nginx_frontend reset --hard",
-      "git -C /home/ubuntu/nginx_frontend config pull.rebase false",
-      "git -C /home/ubuntu/nginx_frontend pull origin main",
+      "git -C /home/ubuntu/Fundy-Main-API reset --hard",
+      "git -C /home/ubuntu/Fundy-Main-API config pull.rebase false",
+      "git -C /home/ubuntu/Fundy-Main-API pull origin main",
       "bash /home/ubuntu/scripts/CI/build.sh",
       "chmod +x /home/ubuntu/scripts/*",
       "bash /home/ubuntu/scripts/restart_server.sh"

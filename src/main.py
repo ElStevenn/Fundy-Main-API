@@ -25,7 +25,7 @@ from src.app.security import get_current_active_credentials_google, get_current_
 from src.app.database import crud
 from src.app.database import schemas as dbschemas
 # from app.utils import None
-from src.config import GOOGLE_CLIENT_ID, FRONTEND_IP, PUBLIC_KEY
+from src.config import GOOGLE_CLIENT_ID, FRONTEND_IP, PUBLIC_KEY, DOMAIN
 
 async_scheduler = ScheduleLayer("Europe/Amsterdam")
 

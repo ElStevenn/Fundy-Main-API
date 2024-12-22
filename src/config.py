@@ -31,6 +31,7 @@ if HOSTNAME == 'mamadocomputer':
 
     GOOGLE_REDIRECT_URI = 'http://localhost:8000/oauth/google/callback'
     FRONTEND_IP = os.getenv('LOCAL_FRONTEND_IP', None)
+    DOMAIN = None
 
 else:
     DB_HOST = os.getenv('TEST_DB_HOST', '0.0.0.0')
@@ -39,6 +40,7 @@ else:
 
     GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', None)
     FRONTEND_IP = os.getenv('TEST_FRONTEND_IP', None)
+    DOMAIN = os.getenv('TEST_DOMAIN', None)
 
 
 # Google Oauth
