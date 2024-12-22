@@ -21,11 +21,10 @@ sudo mkdir -p "$NGINX_CONF_DIR" "$NGINX_ENABLED_DIR"
 mkdir -p "$SECURITY_PATH"
 
 if [ ! -f "$PRIVATE_KEY" ]; then
+    mkdir -p "$SECURITY_PATH"
     openssl genpkey -algorithm RSA -out "$PRIVATE_KEY" -pkeyopt rsa_keygen_bits:4096
     openssl rsa -pubout -in "$PRIVATE_KEY" -out "$PUBLIC_KEY"
 fi
-
-[ ! -f "$APP_DIR/src/.env" ] && touch "$APP_DIR/src/.env"
 
 docker container stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
 docker container rm "$CONTAINER_NAME" >/dev/null 2>&1 || true
