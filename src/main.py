@@ -118,7 +118,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://fundy.pauservices.top"],
+    allow_origins=["https://fundy.pauservices.top"]  if DOMAIN else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -282,7 +282,7 @@ async def google_callback(code: str):
         "secure": True,     
         "samesite": "None",
         "path": "/",
-        "domain": ".pauservices.top"
+        "domain": ".pauservices.top" if DOMAIN else None
     }
 
     if type_response == "login_user":

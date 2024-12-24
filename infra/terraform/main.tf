@@ -226,6 +226,7 @@ resource "null_resource" "update_container" {
       "git -C /home/ubuntu/Fundy-Main-API config pull.rebase false",
       "git -C /home/ubuntu/Fundy-Main-API pull origin main",
       # "bash /home/ubuntu/scripts/CI/build.sh",
+      "sudo su",
       "chmod +x /home/ubuntu/scripts/*",
       "bash /home/ubuntu/scripts/restart_server.sh"
     ]
