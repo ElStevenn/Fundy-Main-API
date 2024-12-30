@@ -95,7 +95,7 @@ resource "aws_instance" "main_api_project" {
     destination = "/home/ubuntu/scripts"
     connection {
       type        = "ssh"
-      user        = "root"
+      user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
       host        = self.public_ip
     }
@@ -106,7 +106,7 @@ resource "aws_instance" "main_api_project" {
     destination = "/home/ubuntu/scripts/config.json"
     connection {
       type        = "ssh"
-      user        = "root"
+      user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
       host        = self.public_ip
     }
@@ -119,7 +119,7 @@ resource "aws_instance" "main_api_project" {
     ]
     connection {
       type        = "ssh"
-      user        = "root"
+      user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
       host        = self.public_ip
     }
@@ -130,7 +130,7 @@ resource "aws_instance" "main_api_project" {
     destination = "/home/ubuntu/Fundy-Main-API/src/.env"
     connection {
       type        = "ssh"
-      user        = "root"
+      user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
       host        = self.public_ip
     }
@@ -177,7 +177,7 @@ resource "null_resource" "post_eip_setup" {
     ]
     connection {
       type        = "ssh"
-      user        = "root"
+      user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
       host        = aws_eip.main_api_eip.public_ip
     }
@@ -203,7 +203,7 @@ resource "null_resource" "update_container" {
     destination = "/home/ubuntu/scripts"
     connection {
       type        = "ssh"
-      user        = "root"
+      user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
       host        = aws_eip.main_api_eip.public_ip
     }
@@ -231,8 +231,7 @@ resource "null_resource" "update_container" {
     ]
     connection {
       type        = "ssh"
-      
-      user        = "root"
+      user        = "ubuntu"
       private_key = file("../../src/security/instance_key")
       host        = aws_eip.main_api_eip.public_ip
     }
