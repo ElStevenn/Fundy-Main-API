@@ -95,7 +95,7 @@ resource "aws_instance" "main_api_project" {
     destination = "/home/ubuntu/scripts"
     connection {
       type        = "ssh"
-      user        = "ubuntu"
+      user        = "root"
       private_key = file("../../src/security/instance_key")
       host        = self.public_ip
     }
@@ -106,7 +106,7 @@ resource "aws_instance" "main_api_project" {
     destination = "/home/ubuntu/scripts/config.json"
     connection {
       type        = "ssh"
-      user        = "ubuntu"
+      user        = "root"
       private_key = file("../../src/security/instance_key")
       host        = self.public_ip
     }
@@ -114,13 +114,12 @@ resource "aws_instance" "main_api_project" {
 
   provisioner "remote-exec" {
     inline = [
-      "sudo su",
       "chmod +x /home/ubuntu/scripts/CI/*",
       "bash /home/ubuntu/scripts/CI/source.sh"
     ]
     connection {
       type        = "ssh"
-      user        = "ubuntu"
+      user        = "root"
       private_key = file("../../src/security/instance_key")
       host        = self.public_ip
     }
@@ -131,7 +130,7 @@ resource "aws_instance" "main_api_project" {
     destination = "/home/ubuntu/Fundy-Main-API/src/.env"
     connection {
       type        = "ssh"
-      user        = "ubuntu"
+      user        = "root"
       private_key = file("../../src/security/instance_key")
       host        = self.public_ip
     }
@@ -171,7 +170,6 @@ resource "null_resource" "post_eip_setup" {
 
     provisioner "remote-exec" {
     inline = [
-      "sudo su",
       "chmod +x /home/ubuntu/scripts/*",
       "bash /home/ubuntu/scripts/CI/source.sh",
       "bash /home/ubuntu/scripts/CI/build.sh",
@@ -179,7 +177,7 @@ resource "null_resource" "post_eip_setup" {
     ]
     connection {
       type        = "ssh"
-      user        = "ubuntu"
+      user        = "root"
       private_key = file("../../src/security/instance_key")
       host        = aws_eip.main_api_eip.public_ip
     }
@@ -205,7 +203,7 @@ resource "null_resource" "update_container" {
     destination = "/home/ubuntu/scripts"
     connection {
       type        = "ssh"
-      user        = "ubuntu"
+      user        = "root"
       private_key = file("../../src/security/instance_key")
       host        = aws_eip.main_api_eip.public_ip
     }
@@ -224,19 +222,17 @@ resource "null_resource" "update_container" {
 
   provisioner "remote-exec" {
     inline = [
-      "sudo su",
       "git -C /home/ubuntu/Fundy-Main-API reset --hard",
       "git -C /home/ubuntu/Fundy-Main-API config pull.rebase false",
       "git -C /home/ubuntu/Fundy-Main-API pull origin main",
       # "bash /home/ubuntu/scripts/CI/build.sh",
-      "sudo su",
       "chmod +x /home/ubuntu/scripts/*",
       "bash /home/ubuntu/scripts/restart_server.sh"
     ]
     connection {
       type        = "ssh"
       
-      user        = "ubuntu"
+      user        = "root"
       private_key = file("../../src/security/instance_key")
       host        = aws_eip.main_api_eip.public_ip
     }
