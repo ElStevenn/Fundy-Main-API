@@ -114,6 +114,7 @@ resource "aws_instance" "main_api_project" {
 
   provisioner "remote-exec" {
     inline = [
+      "sudo su",
       "chmod +x /home/ubuntu/scripts/CI/*",
       "bash /home/ubuntu/scripts/CI/source.sh"
     ]
@@ -170,6 +171,7 @@ resource "null_resource" "post_eip_setup" {
 
     provisioner "remote-exec" {
     inline = [
+      "sudo su",
       "chmod +x /home/ubuntu/scripts/*",
       "bash /home/ubuntu/scripts/CI/source.sh",
       "bash /home/ubuntu/scripts/CI/build.sh",
@@ -222,6 +224,7 @@ resource "null_resource" "update_container" {
 
   provisioner "remote-exec" {
     inline = [
+      "sudo su",
       "git -C /home/ubuntu/Fundy-Main-API reset --hard",
       "git -C /home/ubuntu/Fundy-Main-API config pull.rebase false",
       "git -C /home/ubuntu/Fundy-Main-API pull origin main",
