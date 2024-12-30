@@ -14,7 +14,7 @@ from starlette.responses import RedirectResponse
 from cryptography.hazmat.primitives import serialization
 from datetime import datetime, timedelta, timezone as tz
 from pytz import timezone
-import uuid, asyncio, schedule, os, time, threading, pytz, jwt, random
+import uuid, asyncio, schedule, os, time, threading, pytz, jwt, random, json
 
 from src.app import schemas
 from src.app.founding_rate_service.main_sercice_layer import FoundinRateService
@@ -273,28 +273,46 @@ async def google_callback(code: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating session token: {str(e)}")
 
-    # Redirect and set cookie
+    # Get minimal account data
+    accounts = await crud.get_accounts(user_id=new_user_id)
+    account_metadata = [
+        {"account_id": acc['id'], "account_name": acc['account_name']} 
+        for acc in accounts
+    ]
+
+    # Cookie Parameters
     cookie_params = {
         "key": "credentials",
         "value": f"Bearer {session_token}",
         "httponly": False,
-        "expires": datetime.now(tz.utc) + timedelta(days=30),
-        "secure": True,     
-        "samesite": "None",
+        "expires": (datetime.now(tz.utc) + timedelta(days=30)).strftime("%a, %d %b %Y %H:%M:%S GMT"),
+        "secure": True if DOMAIN else False,
+        "samesite": "Lax",
         "path": "/",
         "domain": ".pauservices.top" if DOMAIN else None
     }
 
+    account_cookie_params = {
+        "key": "accounts",
+        "value": json.dumps(account_metadata),
+        "httponly": False,  
+        "expires": (datetime.now(tz.utc) + timedelta(days=30)).strftime("%a, %d %b %Y %H:%M:%S GMT"),
+        "secure": True,
+        "samesite": "Lax",
+        "path": "/",
+        "domain": ".pauservices.top" if DOMAIN else None
+    }
+
+    # Redirect and set cookies
     if type_response == "login_user":
         response = RedirectResponse(FRONTEND_IP + "/dashboard")
-        response.set_cookie(**cookie_params)
-        return response
-
-    elif type_response == "new_user":
+    else:
         response = RedirectResponse(FRONTEND_IP + "/complete-register")
-        response.set_cookie(**cookie_params)
-        return response
+    
+    response.set_cookie(**account_cookie_params)
+    response.set_cookie(**cookie_params)
 
+    return response
 
 
 @app.get("/historical_founding_rate/{symbol}", description="Get historical founing rate of a crypto", tags=["Metadata User"], deprecated=True)

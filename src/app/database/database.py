@@ -9,6 +9,7 @@ from .models import Base
 # Database engine
 async_engine = create_async_engine(f'postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:5432/{DB_NAME}')
 SQLALCHEMY_DATABASE_URI = f'postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:5432/{DB_NAME}'
+print(SQLALCHEMY_DATABASE_URI)
 
 # Initialize models
 async def create_tables():

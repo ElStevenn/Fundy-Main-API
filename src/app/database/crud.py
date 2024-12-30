@@ -431,6 +431,19 @@ async def createDefaultConfiguration(session: AsyncSession, user_id: str):
 
 
 @db_connection
+async def get_accounts(session: AsyncSession, user_id: str):
+    """Get user accounts"""
+    result = await session.execute(
+        select(Account)
+        .where(Account.user_id == user_id)
+    )
+
+    result = result.scalars().all()
+
+    accounts = [{"id": account.account_id, "proxy_ip": account.proxy_ip, "account_name": account.account_name} for account in result] 
+    return accounts
+
+@db_connection
 async def setUserProfileBase(session: AsyncSession, name: str, surname: str, user_id: str):
     try:
         # Query current values

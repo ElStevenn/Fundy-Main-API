@@ -81,8 +81,10 @@ if [ -f "$config" ]; then
 
     else
         echo "Config file is empty"
+        exit 1
     fi
 
 else
     echo "Config file not found"
+    exit 1
 fi
