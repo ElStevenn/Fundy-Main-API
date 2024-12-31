@@ -60,12 +60,13 @@ resource "aws_eip" "main_api_eip" {
 }
 
 resource "aws_instance" "main_api_project" {
-  ami                    = data.aws_ami.ubuntu.id
+  ami                    = var.ami_id
   instance_type          = "t3.micro"
   key_name               = aws_key_pair.instance_pub_key.key_name
   subnet_id              = var.subnet_id
   vpc_security_group_ids = [data.aws_security_group.paus-security-group.id]
   iam_instance_profile   = data.aws_iam_instance_profile.ssm-fullacces.name
+
 
   tags = {
     Name = "Fundy Main API"
