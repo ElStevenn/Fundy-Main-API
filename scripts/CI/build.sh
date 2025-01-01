@@ -2,7 +2,7 @@
 set -e
 
 # Variables
-DOMAIN="pauservices.top"
+DOMAIN="CO"
 EMAIL="paumat17@gmail.com"
 APP_DIR="/home/ubuntu/Fundy-Main-API"
 CONFIG="/home/ubuntu/scripts/config.json"

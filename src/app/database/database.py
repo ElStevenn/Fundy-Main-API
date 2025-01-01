@@ -7,8 +7,8 @@ from src.config import DB_NAME, DB_PASS, DB_USER, DB_HOST
 from .models import Base
 
 # Database engine
-async_engine = create_async_engine(f'postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:5432/{DB_NAME}')
-SQLALCHEMY_DATABASE_URI = f'postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:5432/{DB_NAME}'
+async_engine = create_async_engine(f'postgresql+asyncpg://{DB_USER}:{DB_PASS}@pauservices.top:5432/{DB_NAME}')
+SQLALCHEMY_DATABASE_URI = f'postgresql+asyncpg://{DB_USER}:{DB_PASS}@pauservices.top:5432/{DB_NAME}'
 print(SQLALCHEMY_DATABASE_URI)
 
 # Initialize models

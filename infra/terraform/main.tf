@@ -83,7 +83,7 @@ resource "aws_instance" "main_api_project" {
     ignore_changes = [ami]
   }
 
-    provisioner "local-exec" {
+  provisioner "local-exec" {
     command = <<EOT
       git -C /home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API add . &&
       git -C /home/mrpau/Desktop/Secret_Project/other_layers/Fundy-Main-API commit -m "${var.commit_message}" &&

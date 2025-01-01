@@ -65,9 +65,7 @@ if [ -f "$config" ]; then
             echo "Running first-time setup..."
             git clone https://github.com/ElStevenn/Fundy-Main-API.git
             mkdir -p /home/ubuntu/Fundy-Main-API/src/security
-            openssl genpkey -algorithm RSA -out /home/ubuntu/Fundy-Main-API/src/security/private_key.pem -pkeyopt rsa_keygen_bits:4096
-            openssl rsa -pubout -in /home/ubuntu/Fundy-Main-API/src/security/private_key.pem -out /home/ubuntu/Fundy-Main-API/src/security/public_key.pem
-
+            
             git config --global --add safe.directory /home/ubuntu/Fundy-Main-API
 
         else
