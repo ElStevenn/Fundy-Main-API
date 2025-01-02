@@ -20,9 +20,6 @@ FIRST_TIME=$(jq -r '.first_time' "$CONFIG")
 sudo mkdir -p "$NGINX_CONF_DIR" "$NGINX_ENABLED_DIR"
 
 # Update the application if not the first time
-# if [[ "$FIRST_TIME" == "false" ]]; then
-#     git -C "$APP_DIR" pull origin main
-# fi
 
 # Stop and remove existing Docker container
 docker container stop "$CONTAINER_NAME" >/dev/null 2>&1 || true

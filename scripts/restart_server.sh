@@ -7,13 +7,14 @@ CONFIG="/home/ubuntu/scripts/config.json"
 IMAGE_NAME="fundy_main_api"
 CONTAINER_NAME="fundy_main_api_v1"
 NETWORK_NAME="my_network"
+DOMAIN="pauservices.top"
 
 # Stop and remove the existing container if it exists
 docker container stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
 docker container rm "$CONTAINER_NAME" >/dev/null 2>&1 || true
 
 # (Optional) Rebuild the Docker image if code changed
-cd "$APP_DIR" || exit 1
+cd "$APP_DIR" || exit 1w
 docker build -t "$IMAGE_NAME" .
 
 # Run the container mapped to localhost:8000

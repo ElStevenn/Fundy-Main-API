@@ -5,7 +5,7 @@
 
 # Standard Library Imports
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone as tz
+from datetime import timedelta, timezone as tz
 import uuid
 import asyncio
 import schedule
