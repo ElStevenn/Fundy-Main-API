@@ -662,7 +662,7 @@ async def get_searched_cryptos(session: AsyncSession, user_id: str):
         result = await session.execute(
             select(HistoricalSearchedCryptos)
             .where(HistoricalSearchedCryptos.user_id == uuid_obj)
-            .order_by(HistoricalSearchedCryptos.searchet_at.desc())
+            .order_by(HistoricalSearchedCryptos.searched_at.desc())
         )
         
         cryptos = result.scalars().all()
