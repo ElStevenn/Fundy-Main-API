@@ -424,8 +424,8 @@ async def createDefaultConfiguration(session: AsyncSession, user_id: str):
         picture_synced = True,
         dark_mode = True,
         currency = "usd",
-        language = "english",
-        notifications = "most-recent",
+        language = "en",
+        notifications = "recent",
     )
 
     session.add(default_configuration)
@@ -446,29 +446,24 @@ async def get_accounts(session: AsyncSession, user_id: str):
     return accounts
 
 @db_connection
-async def setUserProfileBase(session: AsyncSession, name: str, user_id: str):
+async def setUserConf(session: AsyncSession, user_id: str, user_settings: PreferencesBase):
     try:
-        # Query current values
-        existing_user = await session.get(Users, user_id)
-        stmt = (
-            update(Users)
-            .where(Users.id == user_id)
-            .values(
-                name=name,
-            )
-        )
-        await session.execute(stmt)
-        
-        # If name or surname are different, set oauth_synced to False in UserConfiguration
-        if existing_user.name != name:
-            oauth_stmt = (
-                update(UserConfiguration)
-                .where(UserConfiguration.user_id == user_id)
-                .values(oauth_synced=False)
-            )
-            await session.execute(oauth_stmt)
+        uuid_obj = uuid.UUID(user_settings, version=4)
+        stmt_select = select(UserConfiguration).where(UserConfiguration.user_id == uuid_obj)
+        result = await session.execute(stmt_select)
+        user_configurtion_row = result.scalar()
 
-        await session.commit()
+        if user_configurtion_row:
+            stmt_update = (
+                update(UserConfiguration)
+                .where(UserConfiguration.user_id == uuid_obj)
+                .values(
+                    username=user_settings.username,
+                    name=user_settings.name,
+                    avariable_emails=user_settings.avariable_emails
+                )
+            )
+
 
     except ValueError:
          raise HTTPException(status_code=400, detail=f"Error: {user_id} is not a valid UUID4")
@@ -476,7 +471,7 @@ async def setUserProfileBase(session: AsyncSession, name: str, user_id: str):
 
 
 @db_connection
-async def set_user_base_config(session: AsyncSession, user_config: UserBaseConfig, user_id: str):
+async def set_user_base_config(session: AsyncSession, user_config: PreferencesBase, user_id: str):
     try:
         # Ensure the user_id is a valid UUID4
         uuid_obj = uuid.UUID(user_id, version=4)
@@ -485,9 +480,6 @@ async def set_user_base_config(session: AsyncSession, user_config: UserBaseConfi
         stmt_select = select(UserConfiguration).where(UserConfiguration.user_id == uuid_obj)
         result = await session.execute(stmt_select)
         user_config_row = result.scalar()
-
-
-        # Ensure that the Name and Surname are the same, otherwise the boolean 'oauth_synced' will be false
 
 
         # check whether create or update
@@ -573,7 +565,6 @@ async def get_whole_user(session: AsyncSession, user_id: str):
         "currency": user_profile.currency if user_profile else None,
         "language": user_profile.language if user_profile else None,
         "notifications": user_profile.notifications if user_profile else None,
-        "public_email": user_profile.public_email if user_profile else None,
         "avariable_emails": user_emails
     }
 
@@ -590,7 +581,7 @@ async def delete_user_account(session: AsyncSession, user_id: str):
         session.execute(delete(GoogleOAuth).where(GoogleOAuth.user_id == user_id)),
         session.execute(delete(StarredCryptos).where(StarredCryptos.user_id == user_id)),
         session.execute(delete(HistoricalSearchedCryptos).where(HistoricalSearchedCryptos.user_id == user_id)),
-        session.execute(delete(MonthlySubscription).where(MonthlySubscription.user_id == user_id)),
+        # session.execute(delete(MonthlySubscription).where(MonthlySubscription.user_id == user_id)),
     ]
     await asyncio.gather(*deletion_tasks)
 

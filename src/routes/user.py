@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, Response
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, Response, Request
 from typing import List
 from src.app import schemas
 from src.app.database import crud
@@ -47,19 +47,31 @@ async def update_username(new_username: str, user_credentials: Annotated[tuple[d
 
     return {}
 
-@user_router.post("/profile-configuration", description="### Update user profile configuration", tags=["User"])
-async def update_user_profile_configuration(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_body: schemas.UserConfProfile):
+@user_router.post("/configuration", description="### Update user profile configuration", tags=["User"])
+async def update_user_profile_configuration(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request: Request, request_body: schemas.UserConfiguration):
     _, user_id = user_credentials
 
+    boddy = await request.body()
+    print(boddy)
+    
     # Validate UUIDset-profile-configuration
     try:
         uuid_obj = uuid.UUID(user_id, version=4)
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Error: {user_id} is not a valid UUID4")
     
-    # Update user profile
-    await crud.setUserProfileBase(name=request_body.name, user_id=user_id)
+    # Update user
+    user_config = dbschemas.PreferencesBase(
+        dark_mode=request_body.dark_mode,
+        currency=request_body.currency,
+        language=request_body.language,
+        notifications=request_body.notifications,
+        avariable_emails=request_body.avariable_emails
+    )
 
+    await crud.set_user_base_config(user_config=user_config, user_id=user_id)
+    
+    return Response(status_code=204)
 
 @user_router.put("/change-picture/{user_id}", description="### Change user picture \n\n Change user picture", tags=["User"])
 async def change_user_picture(user_id: str, file: UploadFile):

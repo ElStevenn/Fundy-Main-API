@@ -16,8 +16,8 @@ class UpdateGoogleOAuth(BaseModel):
     expires_at: Optional[datetime] = Field(None, description="Updated expiration datetime of the access token")
 
 class UpdateProfileUpdate(BaseModel):
+    username: Optional[str]
     name: Optional[str]
-    surname: Optional[str]
     url_picture: Optional[str]
 
 """Trade"""
@@ -39,11 +39,12 @@ class CreateHistoricalPNL(BaseModel):
     net_profits: str
 
 """User - Account configuration"""
-class UserBaseConfig(BaseModel):
+class UserConfigUpdate(UpdateProfileUpdate):
     dark_mode: Optional[bool] = False
     currency: Optional[str] = "usd"
     language: Optional[str] = "english"
-    notifications: Optional[str] = "most-recent"
+    notifications: Optional[str] = "recent"
+    avariable_emails: str # Delete this
 
 
 """Preferences"""
@@ -51,7 +52,7 @@ class PreferencesBase(BaseModel):
     dark_mode: Optional[bool] = False
     currency: Optional[str] = "usd"
     language: Optional[str] = "english"
-    notifications: Optional[str] = "most-recent"
+    notifications: Optional[str] = "recent"
 
 class PreferencesSettings(PreferencesBase):
     email_configuration: Optional[List] = ['recive_updates'] #  None, 'recive_updates', 'recive_alerts', 'portfolio_stats', 'running_bots'

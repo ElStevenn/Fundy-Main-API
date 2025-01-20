@@ -34,11 +34,18 @@ class EveryDayTask(BaseTask):
 
 
 class UserBase(BaseModel):
+    username: str
     name: str
-    surname: str
+    email: EmailStr
 
-class UserConfProfile(UserBase):
-    name: str
+class UserConfiguration(BaseModel):
+    url_picture: str
+    client_timezone: str
+    dark_mode: bool
+    currency: str
+    language: str
+    notifications: str
+    avariable_emails: str
 
 class CryptoSearch(BaseModel):
     symbol: str
@@ -96,7 +103,7 @@ class PreferencesSettings(BaseModel):
     dark_mode: Optional[bool] = True
     currency: Optional[str] = 'usd'
     language: Optional[str] = 'english'
-    notifications: Optional[str] = 'most-recent' # 'most-recent', 'unread-first', 'priority'
+    notifications: Optional[str] = 'recent' # 'recent', 'unread-first', 'priority'
 
 # DELETE THIS
 class OpenOrderTest(BaseModel):

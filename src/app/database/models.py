@@ -52,8 +52,8 @@ class UserConfiguration(Base):
     picture_synced = Column(Boolean, default=True)
     public_email = Column(String(255), nullable=True)
     currency = Column(String(3), nullable=False, default='usd')
-    language = Column(String(10), nullable=False, default='english')
-    notifications = Column(String(20), nullable=False, default='most-recent') # 'most-recent' , 'unread-first', 'priority'
+    language = Column(String(10), nullable=False, default='en')
+    notifications = Column(String(20), nullable=False, default='recent') # 'recent' , 'unread', 'priority'
 
     user = relationship("Users", back_populates="user_configurations")
 

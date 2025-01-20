@@ -28,7 +28,7 @@ async def get_main_trading_account(user_credentials: Annotated[tuple[dict, str],
     main_trading_account = await crud.get_main_trading_account(user_id=user_id)
     return {"main_trading_account": main_trading_account}
 
-
+"""
 @accounts_router.get("/configuration", description="### Get accounts configuration\n\nAt this moment the only feature is to get the **main trading account**")
 async def get_accounts_configuration(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_body: schemas.UserConfProfile):
     _, user_id = user_credentials
@@ -55,7 +55,7 @@ async def get_accounts_configuration(user_credentials: Annotated[tuple[dict, str
         await crud.set_public_email(user_id=user_id, public_email=request_body.public_email)
 
     return {"success": True, "message": "User profile updated successfully"}
-
+"""
 
 
 
