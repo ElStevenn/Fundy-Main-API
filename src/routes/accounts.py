@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from typing import List
 from src.app import schemas
 from src.app.database import crud
+from src.app import schemas as dbschemas
 from src.app.security import get_current_credentials
 from typing import Annotated
+import uuid
 
 accounts_router = APIRouter(
     prefix="/accounts",
@@ -27,8 +29,38 @@ async def get_main_trading_account(user_credentials: Annotated[tuple[dict, str],
     return {"main_trading_account": main_trading_account}
 
 
+@accounts_router.get("/configuration", description="### Get accounts configuration\n\nAt this moment the only feature is to get the **main trading account**")
+async def get_accounts_configuration(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_body: schemas.UserConfProfile):
+    _, user_id = user_credentials
+     # Validate UUIDset-profile-configuration
+
+    try:
+        uuid_obj = uuid.UUID(user_id, version=4)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Error: {user_id} is not a valid UUID4")
+
+    # Update user profile
+    await crud.setUserProfileBase(name=request_body.name, user_id=user_id)
+
+    # Create UserBaseConfig instance to update configuration
+    user_config = dbschemas.PreferencesSettings(
+        email_configuration
+    )
+
+    await crud.set_user_base_config(user_config=user_config, user_id=user_id)
+
+    if not request_body.public_email:
+        await crud.delete_public_email(user_id=user_id)
+    else:
+        await crud.set_public_email(user_id=user_id, public_email=request_body.public_email)
+
+    return {"success": True, "message": "User profile updated successfully"}
+
+
+
+
 @accounts_router.post("/configuration", description="### Save accounts configuration\n\nAt this moment the only feature is to save the **main trading account**",)
-async def set_main_trading_account(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_body: schemas.AccountSaveConfig,):
+async def set_main_trading_account(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_body: schemas.AccountSaveConfig):
     _, user_id = user_credentials
 
     # Set main trading account

@@ -38,12 +38,7 @@ class UserBase(BaseModel):
     surname: str
 
 class UserConfProfile(UserBase):
-    webpage_url: Optional[str] = None
-    public_email: Optional[str] = None
-    bio: Optional[str] = None
-    main_used_exchange: Optional[str] = None
-    trading_experience: Optional[str] = None
-    location: Optional[str] = None
+    name: str
 
 class CryptoSearch(BaseModel):
     symbol: str
@@ -92,6 +87,16 @@ class UserResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+# PREFERENCES SETTINGS
+class PreferencesSettings(BaseModel):
+    email_configuration: Optional[List] = ['recive_updates'] #  None, 'recive_updates', 'recive_alerts', 'portfolio_stats', 'running_bots'
+    small_balance: Optional[float] = 0.01
+    dark_mode: Optional[bool] = True
+    currency: Optional[str] = 'usd'
+    language: Optional[str] = 'english'
+    notifications: Optional[str] = 'most-recent' # 'most-recent', 'unread-first', 'priority'
 
 # DELETE THIS
 class OpenOrderTest(BaseModel):

@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from src.app.google_service import get_credentials_from_code, get_google_flow
+from src.app.telegram_service import verify_telegram_oauth
 from datetime import datetime, timedelta, timezone as tz
+from urllib.parse import parse_qsl
 import jwt, os, random, json, asyncio
 
 from src.app.database import crud
@@ -10,12 +12,12 @@ from src.app.security import encode_session_token
 
 from src.config import FRONTEND_IP, DOMAIN
 
-auth_router = APIRouter(
-    prefix="/oauth/google",
+oauth_router = APIRouter(
+    prefix="/oauth",
     tags=["Authentication"]
 )
 
-@auth_router.get("/login",description="Oauth 2.0 with google",tags=["Authentication"])
+@oauth_router.get("/google/login",description="Oauth 2.0 with google",tags=["Authentication"])
 async def google_login():
     flow = get_google_flow()
     authorization_url, state = flow.authorization_url(
@@ -27,7 +29,7 @@ async def google_login():
 
 
 
-@auth_router.get("/callback", description="Oauth 2.0 callback", tags=["Authentication"])
+@oauth_router.get("/google/callback", description="Oauth 2.0 callback", tags=["Authentication"])
 async def google_callback(code: str):
     # Obtain full credentials
     try:
@@ -150,3 +152,17 @@ async def google_callback(code: str):
     response.set_cookie(**cookie_params)
 
     return response
+
+
+@oauth_router.get("/telegram",description="Oauth 2.0 with Telegram",tags=["Authentication"])
+async def telegram_oauth(request: Request):
+    query_params = dict(parse_qsl(request.url.query))
+
+    if verify_telegram_oauth(query_params):
+        user_id = query_params.get("id")
+        first_name = query_params.get("first_name", "Anonymous")
+        username = query_params.get("username", None)
+
+        # Continue here
+
+    return {"status": "under construction"}

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from datetime import datetime
 import uuid
 
@@ -40,9 +40,19 @@ class CreateHistoricalPNL(BaseModel):
 
 """User - Account configuration"""
 class UserBaseConfig(BaseModel):
-    webpage_url: Optional[str] = None
-    bio: Optional[str] = None
-    main_used_exchange: Optional[str] = None
-    trading_experience: Optional[str] = None
-    location: Optional[str] = None
+    dark_mode: Optional[bool] = False
+    currency: Optional[str] = "usd"
+    language: Optional[str] = "english"
+    notifications: Optional[str] = "most-recent"
 
+
+"""Preferences"""
+class PreferencesBase(BaseModel):
+    dark_mode: Optional[bool] = False
+    currency: Optional[str] = "usd"
+    language: Optional[str] = "english"
+    notifications: Optional[str] = "most-recent"
+
+class PreferencesSettings(PreferencesBase):
+    email_configuration: Optional[List] = ['recive_updates'] #  None, 'recive_updates', 'recive_alerts', 'portfolio_stats', 'running_bots'
+    small_balance: Optional[float] = 0.01

@@ -291,7 +291,6 @@ async def get_user_profile(session: AsyncSession, user_id) -> dict:
         return {
             "username": user.username,
             "name": user.name,
-            "surname": user.surname,
             "email": user.email,
             "url_picture": user.url_picture,
             "role": user.role
@@ -421,9 +420,12 @@ async def createDefaultConfiguration(session: AsyncSession, user_id: str):
     """Create default configuration for the user"""
     default_configuration = UserConfiguration(
         user_id = user_id,
-        min_funding_rate_threshold = 0.1,
         oauth_synced = True,
-        picture_synced = True
+        picture_synced = True,
+        dark_mode = True,
+        currency = "usd",
+        language = "english",
+        notifications = "most-recent",
     )
 
     session.add(default_configuration)
@@ -444,7 +446,7 @@ async def get_accounts(session: AsyncSession, user_id: str):
     return accounts
 
 @db_connection
-async def setUserProfileBase(session: AsyncSession, name: str, surname: str, user_id: str):
+async def setUserProfileBase(session: AsyncSession, name: str, user_id: str):
     try:
         # Query current values
         existing_user = await session.get(Users, user_id)
@@ -453,13 +455,12 @@ async def setUserProfileBase(session: AsyncSession, name: str, surname: str, use
             .where(Users.id == user_id)
             .values(
                 name=name,
-                surname=surname
             )
         )
         await session.execute(stmt)
         
         # If name or surname are different, set oauth_synced to False in UserConfiguration
-        if existing_user.name != name or existing_user.surname != surname:
+        if existing_user.name != name:
             oauth_stmt = (
                 update(UserConfiguration)
                 .where(UserConfiguration.user_id == user_id)
@@ -495,11 +496,10 @@ async def set_user_base_config(session: AsyncSession, user_config: UserBaseConfi
                 update(UserConfiguration)
                 .where(UserConfiguration.user_id == uuid_obj)
                 .values(
-                    webpage_url=user_config.webpage_url,
-                    location=user_config.location,
-                    bio=user_config.bio,
-                    main_used_exchange=user_config.main_used_exchange,
-                    trading_experience=user_config.trading_experience
+                    dark_mode=user_config.dark_mode,
+                    currency=user_config.currency,
+                    language=user_config.language,
+                    notifications=user_config.notifications,
                 )
             )
             await session.execute(stmt_update)
@@ -507,11 +507,10 @@ async def set_user_base_config(session: AsyncSession, user_config: UserBaseConfi
             # Insert new configuration
             new_user_config = UserConfiguration(
                 user_id=uuid_obj,
-                webpage_url=user_config.webpage_url,
-                location=user_config.location,
-                bio=user_config.bio,
-                main_used_exchange=user_config.main_used_exchange,
-                trading_experience=user_config.trading_experience
+                dark_mode=user_config.dark_mode,
+                currency=user_config.currency,
+                language=user_config.language,
+                notifications=user_config.notifications,
             )
             session.add(new_user_config)
 
@@ -567,15 +566,13 @@ async def get_whole_user(session: AsyncSession, user_id: str):
     return {
         "username": user_data.username,
         "name": user_data.name,
-        "surname": user_data.surname,
+        "email": user_data.email,
         "url_picture": user_data.url_picture,
         "client_timezone": user_profile.client_timezone if user_profile else None,
-        "min_funding_rate_threshold": user_profile.min_funding_rate_threshold if user_profile else None,
-        "location": user_profile.location if user_profile else None,
-        "bio": user_profile.bio if user_profile else None,
-        "webpage_url": user_profile.webpage_url if user_profile else None,
-        "trading_experience": user_profile.trading_experience if user_profile else None,
-        "main_used_exchange": user_profile.main_used_exchange if user_profile else None,
+        "dark_mode": user_profile.dark_mode if user_profile else None,
+        "currency": user_profile.currency if user_profile else None,
+        "language": user_profile.language if user_profile else None,
+        "notifications": user_profile.notifications if user_profile else None,
         "public_email": user_profile.public_email if user_profile else None,
         "avariable_emails": user_emails
     }

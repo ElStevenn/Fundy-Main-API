@@ -47,6 +47,8 @@ else:
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', 'your-google-client-id')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', 'your-client-sercret')
 
+# Telegram Oauth
+TELEGRAM_ACCES_TOKEN = os.getenv('TELEGRAM_ACCES_TOKEN', 'your-access-token')
 
 # SECURITY
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-jwt-secret-key')

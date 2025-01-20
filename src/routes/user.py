@@ -26,7 +26,7 @@ async def get_user_profile(user_credentials: Annotated[tuple[dict, str], Depends
     return user_data
 
 
-@user_router.get("/detailed-profile", description="### Get user profile conf, everything about getting the user profile configuration", tags=["User"])
+@user_router.get("/configuration", description="### Get full user configuration.\n\nThis endpoint returns the whole user configuration, including the user profile, the user base configuration and the user credentials.", tags=["User"])
 async def get_whole_user_profile(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
     _, user_id = user_credentials
 
@@ -34,6 +34,12 @@ async def get_whole_user_profile(user_credentials: Annotated[tuple[dict, str], D
 
     return user_conf
 
+@user_router.get("/login_logs", description="### Get login logs of the user", tags=["User"])
+async def get_login_logs(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
+    _, user_id = user_credentials
+    # 'activity', 'Date/Time', 'IP Address', 'Location'
+
+    return {"status": "under construction"}
 
 @user_router.put("/username/{new_username}", description="### Update user username", tags=["User"])
 async def update_username(new_username: str, user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
@@ -41,9 +47,8 @@ async def update_username(new_username: str, user_credentials: Annotated[tuple[d
 
     return {}
 
-
-@user_router.get("profile-configuration", description="### Get user profile configuration", tags=["User"])
-async def get_users_sorted_by_joined_at(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_body: schemas.UserConfProfile):
+@user_router.post("/profile-configuration", description="### Update user profile configuration", tags=["User"])
+async def update_user_profile_configuration(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_body: schemas.UserConfProfile):
     _, user_id = user_credentials
 
     # Validate UUIDset-profile-configuration
@@ -51,38 +56,15 @@ async def get_users_sorted_by_joined_at(user_credentials: Annotated[tuple[dict, 
         uuid_obj = uuid.UUID(user_id, version=4)
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Error: {user_id} is not a valid UUID4")
-
+    
     # Update user profile
-    await crud.setUserProfileBase(name=request_body.name, surname=request_body.surname, user_id=user_id)
-
-    # Create UserBaseConfig instance to update configuration
-    user_config = dbschemas.UserBaseConfig(
-        webpage_url=request_body.webpage_url,
-        bio=request_body.bio,
-        main_used_exchange=request_body.main_used_exchange,
-        trading_experience=request_body.trading_experience,
-        location=request_body.location,
-    )
-
-    await crud.set_user_base_config(user_config=user_config, user_id=user_id)
-
-    if not request_body.public_email:
-        await crud.delete_public_email(user_id=user_id)
-    else:
-        await crud.set_public_email(user_id=user_id, public_email=request_body.public_email)
-
-    return {"success": True, "message": "User profile updated successfully"}
+    await crud.setUserProfileBase(name=request_body.name, user_id=user_id)
 
 
 @user_router.put("/change-picture/{user_id}", description="### Change user picture \n\n Change user picture", tags=["User"])
 async def change_user_picture(user_id: str, file: UploadFile):
     file.filename
     file = await file.read()
-    return Response(content="Under construction, not implemented", status_code=501)
-
-
-@user_router.post("/change-email/{user_id}", description="### Endpoint to change the user email, requires oauth verification", tags=["User"])
-async def change_user_email(user_id: str, request_body):
     return Response(content="Under construction, not implemented", status_code=501)
 
 @user_router.delete("/delete-account", description="### Delete all user account\n\nThis endpoint deletes all the user info and data no matter what.", tags=["User"])
@@ -124,7 +106,7 @@ async def confirm_delete(user_credentials: Annotated[tuple[dict, str], Depends(g
     else:
         raise HTTPException(status_code=403, detail="Invalid or expired token")
     
-@user_router.post("/user/starred_symbol", description="#### Add new crypto as hilighted or starred so that the user can acces to it easly", tags=["User"])
+@user_router.post("/starred_symbol", description="#### Add new crypto as hilighted or starred so that the user can acces to it easly", tags=["User"])
 async def add_new_starred_symbol(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], request_boddy: schemas.CryptoSearch):
     _, user_id = user_credentials
 
@@ -138,14 +120,14 @@ async def add_new_starred_symbol(user_credentials: Annotated[tuple[dict, str], D
     return Response(status_code=204)
 
 
-@user_router.delete("/user/starred_symbol/{symbol}", description="### Remove starred symbol (saved crypto) of the user", tags=["User"])
+@user_router.delete("/starred_symbol/{symbol}", description="### Remove starred symbol (saved crypto) of the user", tags=["User"])
 async def remove_starred_symbol(symbol: str, user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
     _, user_id = user_credentials
     await crud.delete_starred_crypto(user_id=user_id, symbol=symbol)
     return Response(status_code=204)
 
 
-@user_router.get("/user/symbol-detail/{symbol}", description="### See simbol  whether is **Starred** or it's **blocked** to trade\n\n This function is allowed for registered users only.\n\nFuture outputs: How many **liquidity** needs in this operation or in persentage", tags=["User"])
+@user_router.get("/symbol-detail/{symbol}", description="### See simbol  whether is **Starred** or it's **blocked** to trade\n\n This function is allowed for registered users only.\n\nFuture outputs: How many **liquidity** needs in this operation or in persentage", tags=["User"])
 async def get_main_panle_crypto(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], symbol: str):
     _, user_id = user_credentials
 
@@ -157,6 +139,26 @@ async def get_main_panle_crypto(user_credentials: Annotated[tuple[dict, str], De
 
     return {
         "is_starred": _is_starred_crypto,
-        "is_blocked": False, 
+        "is_blocked": False,
     }
 
+@user_router.get("/search/cryptos", response_model=List[schemas.CryptoSearch], description="### Get last searched cryptos from a user\n\n **Return:**\n\nList[\n\n - **symbol**\n\n - **name**\n\n - **picture_url**]", tags=["User"],)
+async def get_last_searched_cryptos(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)],):
+    _, user_id = user_credentials
+
+    # Get Searched Cryptos
+    result = await crud.get_searched_cryptos(user_id=user_id)
+
+    if result:
+        searched_cryptos = [
+            {
+                "symbol": b["symbol"],
+                "name": b["name"],
+                "picture_url": b["picture_url"],
+            }
+            for b in result
+        ]
+
+        return searched_cryptos
+    else:
+        return []
