@@ -45,7 +45,7 @@ def db_connection(func):
 
 @db_connection
 async def create_new_user(session: AsyncSession, username: str, name: Optional[str] = None,
-                         surname: Optional[str] = None, email: Optional[str] = None,
+                        email: Optional[str] = None,
                          url_picture: Optional[str] = None):
     """
     Create a new user with the provided details.
@@ -54,7 +54,6 @@ async def create_new_user(session: AsyncSession, username: str, name: Optional[s
     new_user = Users(
         username=username,
         name=name,
-        surname=surname,
         email=email,
         url_picture=url_picture
     )
@@ -123,7 +122,6 @@ async def check_if_user_exists(session: AsyncSession, email: str):
             "user_id": user.id,
             "username": user.username,
             "name": user.name,
-            "surname": user.surname,
             "email": user.email,
         }
 
@@ -327,7 +325,7 @@ async def update_profile(session: AsyncSession, email: str, user_update: UpdateP
             .where(Users.id == user_id)
             .values(
                 name=user_update.name,
-                surname=user_update.surname,
+                username=user_update.username,
                 url_picture=user_update.url_picture
             )
             .execution_options(synchronize_session="fetch")

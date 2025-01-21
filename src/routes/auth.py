@@ -46,10 +46,10 @@ async def google_callback(code: str):
             audience=os.getenv("GOOGLE_CLIENT_ID"),
         )
 
-        user_email = decoded_token.get("email")
-        user_name = decoded_token.get("given_name")
-        user_surname = decoded_token.get("family_name")
-        user_picture = decoded_token.get("picture")
+        user_email = decoded_token.get("email"); print("email", user_email)
+        user_name = decoded_token.get("given_name"); print("name",user_name)
+        user_surname = decoded_token.get("family_name"); print("surname", user_surname)
+        user_picture = decoded_token.get("picture"); print("poictu",user_picture)
         user_id = decoded_token.get("sub")
 
         if not user_email:
@@ -63,11 +63,9 @@ async def google_callback(code: str):
     user = await crud.check_if_user_exists(user_email)
     if not user:
         # Create new user
-        username = f"{user_name.lower().replace(' ', '')}{random.randint(1000, 9999)}"
         new_user_id = await crud.create_new_user(
-            username=username,
-            name=user_name,
-            surname=user_surname,
+            username=user_name,
+            name=f"{user_name} {user_surname}",
             email=user_email,
             url_picture=user_picture,
         )
@@ -93,8 +91,8 @@ async def google_callback(code: str):
         )
 
         update_user = dbschemas.UpdateProfileUpdate(
-            name=user_name,
-            surname=user_surname,
+            name=f"{user_name} {user_surname}",
+            username=user_name,
             url_picture=user_picture,
         )
 
