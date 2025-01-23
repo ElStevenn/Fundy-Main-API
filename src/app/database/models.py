@@ -54,6 +54,8 @@ class UserConfiguration(Base):
     currency = Column(String(3), nullable=False, default='usd')
     language = Column(String(10), nullable=False, default='en')
     notifications = Column(String(20), nullable=False, default='recent') # 'recent' , 'unread', 'priority'
+    email_configuration = Column(Text, nullable=False, default="['recive_updates']")  #  None, 'recive_updates', 'recive_alerts', 'portfolio_stats', 'running_bots'
+    register_status = Column(String(20), nullable=False, default='1') # '1', '2', '3', 'complete'
 
     user = relationship("Users", back_populates="user_configurations")
 

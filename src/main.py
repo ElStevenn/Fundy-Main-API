@@ -20,6 +20,7 @@ from src.routes.user import user_router as user
 from src.routes.auth import oauth_router as oauth
 from src.routes.administrative import administrative_router as administrative
 from src.routes.accounts import accounts_router as accounts
+from src.routes.trading_bots import trading_bots_router as trading_bots
 from src.config import DOMAIN
 
 # Initialize Scheduler and Services
@@ -114,6 +115,7 @@ app.include_router(oauth)
 app.include_router(user)
 app.include_router(accounts)
 app.include_router(administrative)
+app.include_router(trading_bots)
 
 app.add_middleware(
     CORSMiddleware,

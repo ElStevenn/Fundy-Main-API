@@ -125,25 +125,6 @@ async def check_if_user_exists(session: AsyncSession, email: str):
             "email": user.email,
         }
 
-@db_connection
-async def get_all_joined_users(session: AsyncSession):
-    result = await session.execute(
-        select(Users)
-    )
-
-    all_users = result.scalars().all()
-
-    if not all_users:
-        return {}
-    else:
-        registered_users = [
-            {"user_id": user.id, "username": user.username, "name": user.name, "surname": user.surname, "email": user.email, "url_picture": user.url_picture, "role": user.role}
-            for user in all_users
-        ]
-
-        return registered_users
-
-
 
 @db_connection
 async def delete_account_cascade(session: AsyncSession, email: str, account_type: str):
@@ -310,7 +291,7 @@ async def update_profile(session: AsyncSession, email: str, user_update: UpdateP
     if not user_id:
         return 0 
     
-    # Check if the name and surname can be updated (if oauth_synced is True)
+    # Check if the name and username can be updated (if oauth_synced is True)
     result_updatable = await session.execute(
         select(UserConfiguration.oauth_synced)
         .where(UserConfiguration.user_id == user_id)
@@ -318,7 +299,7 @@ async def update_profile(session: AsyncSession, email: str, user_update: UpdateP
     
     oauth_synced = result_updatable.scalar()
 
-    # Only update the name and surname if oauth_synced is True
+    # Only update the name, username and picture can be changed
     if oauth_synced:
         result = await session.execute(
             update(Users)
@@ -346,7 +327,7 @@ async def get_joined_users(session: AsyncSession, limit: int):
     users = result.scalars().all()
     
     joined_users = [
-        {"user_id": user.id, "username": user.username, "name": user.name, "surname": user.surname, "email": user.email, "url_picture": user.url_picture, "role": user.role, "joined_at": user.joined_at}
+        {"user_id": user.id, "username": user.username, "name": user.name, "email": user.email, "url_picture": user.url_picture, "role": user.role, "joined_at": user.joined_at}
 
         for user in users
     ]
@@ -424,6 +405,7 @@ async def createDefaultConfiguration(session: AsyncSession, user_id: str):
         currency = "usd",
         language = "en",
         notifications = "recent",
+        register_status = "1",
     )
 
     session.add(default_configuration)
@@ -563,9 +545,40 @@ async def get_whole_user(session: AsyncSession, user_id: str):
         "currency": user_profile.currency if user_profile else None,
         "language": user_profile.language if user_profile else None,
         "notifications": user_profile.notifications if user_profile else None,
-        "avariable_emails": user_emails
+        "avariable_emails": user_emails,
+        "register_status": user_profile.register_status if user_profile else None,
     }
 
+@db_connection
+async def update_register_status(session: AsyncSession, user_id: str, register_status: str):
+    """Update the register status of a user"""
+    try:
+        # Validate the UUID format
+        uuid_account_id = uuid.UUID(user_id) 
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid UUID format: {user_id}")
+    
+    try:
+        # Fetch the user configuration record
+        result = await session.execute(
+            select(UserConfiguration).where(UserConfiguration.user_id == uuid_account_id)
+        )
+        user_conf = result.scalar_one()  # Fetch one result or raise exception if not found
+
+        # Update the register_status column
+        user_conf.register_status = register_status
+
+        # Commit the changes
+        await session.commit()
+
+    except NoResultFound:
+        # Raise an exception if no user configuration is found
+        raise HTTPException(status_code=404, detail="UserConfiguration not found")
+    except Exception as e:
+        # Rollback in case of any other exception
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    
 @db_connection
 async def delete_user_account(session: AsyncSession, user_id: str):
     all_accounts = await get_all_accounts(user_id=user_id)
@@ -926,10 +939,41 @@ async def delete_starred_crypto(session: AsyncSession, user_id: str, symbol: str
     return {"response": "Starred crypto removed successfully"}
 
 
+# - - - TRADING BOTS - - - #
+@db_connection
+async def get_trading_bots(session: AsyncSession, user_id: str):
+    """Get all the active trading bots of the user"""
+
+    result = await session.execute(
+        select(Bot)
+        .join(Account, Bot.account_id == Account.account_id)
+        .join(Users, Account.user_id == Users.id)
+        .filter(Users.id == user_id)
+    )
+
+    bots = result.scalars().all()
+
+    trading_bots = [
+        {
+            "bot_id": bot.id,
+            "name": bot.name,
+            "strategy": bot.strategy,
+            "status": bot.status,
+            "created_at": bot.created_at,
+            "last_run": bot.last_run,
+            "configuration": bot.configuration,
+            "extra_metadata": bot.extra_metadata
+        }   
+        for bot in bots
+    ]
+
+    return trading_bots
+
+
 async def main_tesings():
    
-    res = await get_all_accounts("49898f05-bc00-4d4b-87fd12885b8cf28"); print("all account -> ",res)
-    res2 = await delete_user_account("49898f05-bc00-4d4b-87fd-212885b8cf28")
+    res = await get_trading_bots(user_id="94615a24-5243-41a3-8f27-5dae288d2c7e")
+    print(res)
 
 if __name__ == "__main__":
     asyncio.run(main_tesings())

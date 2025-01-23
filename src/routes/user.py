@@ -18,7 +18,7 @@ user_router = APIRouter(
 )
 
 
-@user_router.get("/profile", description="### Get perfile user data:\n\n - **Name**\n\n - **Surname**\n\n - **Email**\n\n - **thumbnail(url)**", tags=["User"])
+@user_router.get("/profile", description="### Get perfile user data:\n\n - **Name**\n\n  - **Email**\n\n - **thumbnail(url)**", tags=["User"])
 async def get_user_profile(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)]):
     _, user_id = user_credentials
     user_data = await crud.get_user_profile(user_id)

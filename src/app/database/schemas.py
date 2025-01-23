@@ -57,3 +57,16 @@ class PreferencesBase(BaseModel):
 class PreferencesSettings(PreferencesBase):
     email_configuration: Optional[List] = ['recive_updates'] #  None, 'recive_updates', 'recive_alerts', 'portfolio_stats', 'running_bots'
     small_balance: Optional[float] = 0.01
+
+"""Bots"""
+class TradingBotBase(BaseModel):
+    bot_id: str
+    name: Optional[str] = None
+    strategy: Optional[str] = None
+    status: Optional[str] = None
+
+class TradingBot(TradingBotBase):
+    created_at: datetime
+    last_run: datetime
+    configuration: Optional[dict] = None
+    extra_metadata: Optional[dict] = None
