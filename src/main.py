@@ -119,7 +119,7 @@ app.include_router(trading_bots)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://fundy.pauservices.top"] if DOMAIN else ["*"],
+    allow_origins=["https://fundy.pauservices.top"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
