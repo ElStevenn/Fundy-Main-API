@@ -68,7 +68,8 @@ async def set_main_trading_account(user_credentials: Annotated[tuple[dict, str],
 
     return Response(status_code=response)
 
-@accounts_router.delete("/{account_id}", description="### Delete an associated exchange account",)
-async def delete_account(account_id: str,):
+@accounts_router.delete("/{account_id}", description="### Remove a linked exchange account")
+async def delete_account(user_credentials: Annotated[tuple[dict, str], Depends(get_current_credentials)], account_id: str):
     await crud.delete_account(account_id=account_id)
     return Response(status_code=204)
+

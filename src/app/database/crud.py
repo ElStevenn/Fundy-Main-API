@@ -823,31 +823,17 @@ async def set_trading_account(session: AsyncSession, user_id: str, account_id: s
 
 @db_connection
 async def delete_account(session: AsyncSession, account_id: str):
-    # Delete credentials
-    await session.execute(
-        delete(UserCredentials)
-        .where(UserCredentials.account_id == account_id)
-    )    
-
-    # Delete Risk Management
-    await session.execute(
-        delete(RiskManagement)
-        .where(RiskManagement.account_id == account_id)
-    )
-
-    # Dete historical PNL
-    await session.execute(
-        delete(Historical_PNL)
-        .where(Historical_PNL.account_id == account_id)
-    )
-
-    # Delete account
-    await session.execute(
-        delete(Account)
-        .where(Account.account_id == account_id)
-    )
+    # Retrieve the account
+    account = await session.get(Account, account_id)
     
+    if account:
+        # Deleting the account will cascade to related entities
+        await session.delete(account)
+        await session.commit()
+    else:
+        print(f"Account with ID {account_id} does not exist.")
 
+    
 @db_connection
 async def get_main_trading_account(session: AsyncSession, user_id):
     """Select main trading account"""
@@ -969,6 +955,40 @@ async def get_trading_bots(session: AsyncSession, user_id: str):
 
     return trading_bots
 
+@db_connection
+async def get_account_trading_bots(session: AsyncSession, account_id: str):
+    """ Get all the trading bots associated with an account """
+    query = await session.execute(
+        select(Bot)
+        .where(Bot.account_id == account_id)
+    )
+    trading_bots = query.scalars().all()
+
+    trade_bots = [
+        {
+            "id": bot.id,
+            "account_id": bot.account_id,
+            "name": bot.name,
+            "strategy": bot.strategy,
+            "status": bot.status,
+            "profit_loss": bot.profit_loss,
+            "created_at": bot.created_at,
+            "last_run": bot.last_run,
+            "configuration": bot.configuration,
+        }
+        for bot in trading_bots
+    ]
+
+    return trade_bots
+
+@db_connection
+async def delete_account_with_bots_and_pnl(session: AsyncSession, account_id: str):
+    """Delete an account and cascade delete associated bots and their PNL history."""
+    account = await session.get(Account, account_id)
+
+    if account:
+        await session.delete(account)
+        await session.commit()
 
 async def main_tesings():
    

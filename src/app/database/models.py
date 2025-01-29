@@ -226,6 +226,10 @@ class SpotHistory(Base):
     asset = Column(String(255), nullable=False)
     balance = Column(Float, nullable=False)
     usd_value = Column(Float, nullable=False)
+    eur_value = Column(Float, nullable=False)
+    gbp_value = Column(Float, nullable=False)
+    btc_value = Column(Float, nullable=False)
+    mxn_value = Column(Float, nullable=False)
 
     account = relationship("Account", back_populates="spot_history")
 
@@ -239,6 +243,10 @@ class FuturesHistory(Base):
     asset = Column(String(255), nullable=False)
     balance = Column(Float, nullable=False)
     usd_value = Column(Float, nullable=False)
+    eur_value = Column(Float, nullable=False)
+    gbp_value = Column(Float, nullable=False)
+    btc_value = Column(Float, nullable=False)
+    mxn_value = Column(Float, nullable=False)
 
     account = relationship("Account", back_populates="futures_history")
 
@@ -252,6 +260,10 @@ class BalanceAccountHistory(Base):
     asset = Column(String(255), nullable=False)
     balance = Column(Float, nullable=False)
     usd_value = Column(Float, nullable=False)
+    eur_value = Column(Float, nullable=False)
+    gbp_value = Column(Float, nullable=False)
+    btc_value = Column(Float, nullable=False)
+    mxn_value = Column(Float, nullable=False)
 
     account = relationship("Account", back_populates="balance_history")
 
