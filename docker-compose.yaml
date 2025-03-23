@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: Fundy-main-api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=LOCALHOST
+    networks:
+      - fundy-network
+
+  database:
+    image: postgres:latest
+    container_name: fundy-main-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - fundy-db-data:/var/lib/postgresql/data
+    env_file:
+      - ./src/.env
+    environment:
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWD}
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_HOST=${DB_HOST}
+    networks:
+      - fundy-network
+
+networks:
+  fundy-network:
+    driver: bridge
+
+volumes:
+  fundy-db-data:
+    driver: local

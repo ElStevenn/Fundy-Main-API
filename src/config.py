@@ -7,8 +7,6 @@ load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-HOSTNAME = socket.gethostname()
-
 # Bitget
 BITGET_APIKEY = os.getenv('BITGET_APIKEY')
 BITGET_SECRET_KEY = os.getenv('BITGET_SECRET_KEY')
@@ -21,26 +19,16 @@ MAX_FOUNDING_RATE = 1.5 # os.getenv('MAX_FOUNDING_RATE', 1.5)
 LEVERAGE = os.getenv('LEVERAGE', 5)
 AMOUNT_ORDER = 10 # At this version, the amount of money per order is fixed 
 
-# Local - Test Database enviroment
+# Database
 DB_NAME = os.getenv('DB_NAME', 'db-name')
+DB_HOST = os.getenv('DB_HOST', '0.0.0.0')
+DB_USER = os.getenv('DB_USERNAME', 'username')
+DB_PASS = os.getenv('DB_PASSWD', 'password')
 
-if HOSTNAME == 'mamadocomputer':
-    DB_HOST = os.getenv('LOCAL_DB_HOST', None)
-    DB_USER = os.getenv('LOCAL_DB_USER', None)
-    DB_PASS = os.getenv('LOCAL_DB_PASS', 'password')
-
-    GOOGLE_REDIRECT_URI = 'http://localhost:8000/oauth/google/callback'
-    FRONTEND_IP = os.getenv('LOCAL_FRONTEND_IP', None)
-    DOMAIN = None
-
-else:
-    DB_HOST = os.getenv('TEST_DB_HOST', '0.0.0.0')
-    DB_USER = os.getenv('TEST_DB_USER', None)
-    DB_PASS = os.getenv('TEST_DB_PASS', 'password')
-
-    GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', None)
-    FRONTEND_IP = os.getenv('TEST_FRONTEND_IP', None)
-    DOMAIN = os.getenv('TEST_DOMAIN', None)
+# Other stuff
+GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', None)
+FRONTEND_IP = os.getenv('TEST_FRONTEND_IP', None)
+DOMAIN = os.getenv('TEST_DOMAIN', None)
 
 
 # Google Oauth

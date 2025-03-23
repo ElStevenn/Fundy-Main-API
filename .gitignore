@@ -11,3 +11,5 @@ infra/terraform/terraform.tfstate.backup
 infra/terraform/.terraform.tfstate.lock.info
 
 *__pycache__ .terraform/
+
+.terraform

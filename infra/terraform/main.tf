@@ -115,7 +115,7 @@ resource "aws_instance" "main_api_project" {
 
   provisioner "remote-exec" {
     inline = [
-      "chmod +x /home/ubuntu/scripts/CI/*",
+      "chmod  +x /home/ubuntu/scripts/CI/*",
       "bash /home/ubuntu/scripts/CI/source.sh"
     ]
     connection {
@@ -169,7 +169,7 @@ resource "aws_eip_association" "main_api_eip_assoc" {
 resource "null_resource" "post_eip_setup" {
   depends_on = [aws_eip_association.main_api_eip_assoc]
 
-    provisioner "remote-exec" {
+  provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ubuntu/scripts/*",
       "bash /home/ubuntu/scripts/CI/source.sh",
